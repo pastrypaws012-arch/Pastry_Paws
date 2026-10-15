@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <circle cx="16" cy="16" r="15" fill="#FEEDDD" stroke="#D29C83" stroke-width="1.5"/>
+  <!-- stylized cake / flower icon -->
+  <path d="M11 22h10v-5H11v5z" fill="#7C3F27" rx="1.5"/>
+  <path d="M13 17h6v-3.5H13V17z" fill="#D29C83" rx="1"/>
+  <path d="M16 9.5c0 1.2-1 2-1 2s-1-.8-1-2a1 1 0 012 0z" fill="#F7B6A7"/>
+  <circle cx="16" cy="8" r="1.2" fill="#7C3F27"/>
+  <path d="M9 22c1.5 1 3.5 1.5 7 1.5s5.5-.5 7-1.5" stroke="#A66D54" stroke-width="1.2" stroke-linecap="round"/>
+</svg>

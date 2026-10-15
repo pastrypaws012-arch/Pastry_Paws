@@ -1,0 +1,124 @@
+@import "tailwindcss";
+
+@theme {
+  --color-peach-cream: #FEEDDD;
+  --color-vanilla-blush: #FDEADA;
+  --color-soft-apricot: #FEE5D2;
+  --color-dusty-peach: #F7B6A7;
+  --color-blush-pink: #F9C8B5;
+  --color-rose-clay: #D29C83;
+  --color-cinnamon-taupe: #A66D54;
+  --color-terracotta: #7C3F27;
+  --color-deep-cocoa: #411C10;
+  --color-warm-white: #FFF9F3;
+
+  --font-serif: "Cormorant Garamond", Georgia, Cambria, serif;
+  --font-sans: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-script: "Alex Brush", cursive;
+}
+
+:root {
+  --color-peach-cream: #FEEDDD;
+  --color-vanilla-blush: #FDEADA;
+  --color-soft-apricot: #FEE5D2;
+  --color-dusty-peach: #F7B6A7;
+  --color-blush-pink: #F9C8B5;
+  --color-rose-clay: #D29C83;
+  --color-cinnamon-taupe: #A66D54;
+  --color-terracotta: #7C3F27;
+  --color-deep-cocoa: #411C10;
+  --color-warm-white: #FFF9F3;
+
+  --color-background: var(--color-peach-cream);
+  --color-surface: var(--color-warm-white);
+  --color-text-primary: var(--color-deep-cocoa);
+  --color-text-secondary: var(--color-terracotta);
+  --color-accent: var(--color-dusty-peach);
+  --color-border: var(--color-rose-clay);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  font-family: var(--font-sans);
+  color: var(--color-deep-cocoa);
+  background-color: var(--color-peach-cream);
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #FEEDDD;
+}
+::-webkit-scrollbar-thumb {
+  background: #D29C83;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #A66D54;
+}
+
+/* Delicate vintage scalloped & decorative borders */
+.scallop-divider-top {
+  position: relative;
+}
+.scallop-divider-top::before {
+  content: '';
+  position: absolute;
+  top: -12px;
+  left: 0;
+  right: 0;
+  height: 12px;
+  background-size: 24px 12px;
+  background-repeat: repeat-x;
+  background-image: radial-gradient(circle at 12px 12px, transparent 12px, currentColor 12px);
+}
+
+/* Delicate subtle texture overlay */
+.paper-grain {
+  background-image: radial-gradient(rgba(65, 28, 16, 0.02) 1px, transparent 0);
+  background-size: 24px 24px;
+}
+
+/* Image reveal mask */
+.editorial-mask {
+  clip-path: inset(0 0 0 0 round 16px);
+  transition: clip-path 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Refined typography styles */
+h1, h2, h3, h4, .font-serif {
+  font-family: var(--font-serif);
+}
+
+.font-script {
+  font-family: var(--font-script);
+}
+
+/* Custom focus ring */
+button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--color-terracotta);
+  outline-offset: 3px;
+}
+
+/* Hide scrollbar for clean horizontal scrolling carousels */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
