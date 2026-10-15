@@ -90,7 +90,7 @@ export function Creations() {
   return (
     <section
       id="creations"
-      className="py-16 md:py-24 bg-[#FDEADA] relative overflow-hidden"
+      className="pt-12 pb-6 md:pt-16 md:pb-8 bg-[#FDEADA] relative overflow-hidden"
     >
       {/* Decorative top border line */}
       <div className="absolute top-0 left-0 right-0 h-px bg-[#D29C83]/30" />
@@ -165,7 +165,7 @@ export function Creations() {
         <div className="relative -mx-5 sm:-mx-8 px-5 sm:px-8">
           <div
             ref={scrollRef}
-            className="flex items-stretch gap-4 sm:gap-5 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-5 pt-1 no-scrollbar focus:outline-none"
+            className="flex items-stretch gap-4 sm:gap-5 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-2 pt-1 no-scrollbar focus:outline-none"
             tabIndex={0}
             role="region"
             aria-label="Creations carousel"
@@ -182,7 +182,7 @@ export function Creations() {
         </div>
 
         {/* Gallery Footer Note with Scroll Hint */}
-        <div className="mt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-[#7C3F27] gap-3 pt-4 border-t border-[#D29C83]/20">
+        <div className="mt-3 sm:mt-4 flex flex-col sm:flex-row items-center justify-between text-xs text-[#7C3F27] gap-2 pt-3 border-t border-[#D29C83]/25">
           <div className="flex items-center gap-1.5">
             <Sparkles className="w-3.5 h-3.5 text-[#F7B6A7]" />
             <span>Swipe or click arrows to explore all {filteredItems.length} creations</span>

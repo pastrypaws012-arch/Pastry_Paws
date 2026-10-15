@@ -40,7 +40,7 @@ export function Footer() {
             </p>
 
             <p className="text-xs text-[#FDEADA]/70 leading-relaxed max-w-md pt-2">
-              Freshly baked with love by Anjana. Cakes, brownies, gooey choco lava, cupcakes, and cookies crafted to make every celebration sweet. Birthday celebration cakes include complimentary mini cookies!
+              Freshly baked with love by Pastry Paws. Cakes, brownies, gooey choco lava, cupcakes, and cookies crafted to make every celebration sweet. Birthday celebration cakes include complimentary mini cookies!
             </p>
           </div>
 
@@ -89,10 +89,11 @@ export function Footer() {
                 href={brandConfig.contact.instagramUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="p-2 rounded-full bg-[#7C3F27] text-[#FFF9F3] hover:bg-[#F7B6A7] hover:text-[#411C10] transition-colors"
-                aria-label="Instagram Profile"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#7C3F27] text-xs text-[#FFF9F3] hover:bg-[#F7B6A7] hover:text-[#411C10] transition-colors"
+                aria-label={`Instagram Profile ${brandConfig.contact.instagramHandle}`}
               >
-                <InstagramIcon className="w-4 h-4" />
+                <InstagramIcon className="w-3.5 h-3.5" />
+                <span>{brandConfig.contact.instagramHandle}</span>
               </a>
               <a
                 href={`mailto:${brandConfig.contact.email}`}

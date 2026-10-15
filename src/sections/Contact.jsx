@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { brandConfig } from '../data/brand';
 import { Reveal } from '../components/Reveal';
+import { AnimatedScriptWord } from '../components/AnimatedUnderline';
+import { InstagramIcon } from '../components/Icons';
 import {
   MessageCircle,
   Mail,
@@ -58,9 +60,13 @@ export function Contact() {
             <Reveal delay={0.1} duration={0.6}>
               <h2 className="font-serif text-3xl sm:text-4xl md:text-5xl lg:text-6xl text-[#FFF9F3] font-normal leading-[1.12]">
                 Let's make something{' '}
-                <span className="font-script text-5xl sm:text-6xl md:text-7xl text-[#F7B6A7] block sm:inline">
+                <AnimatedScriptWord
+                  underlineColor="#F7B6A7"
+                  delay={0.35}
+                  className="font-script text-5xl sm:text-6xl md:text-7xl text-[#F7B6A7] block sm:inline"
+                >
                   sweet together.
-                </span>
+                </AnimatedScriptWord>
               </h2>
             </Reveal>
 
@@ -126,6 +132,16 @@ export function Contact() {
                 >
                   <Phone className="w-4 h-4 text-[#F7B6A7]" />
                   <span>{brandConfig.contact.phone}</span>
+                </a>
+                <span className="text-[#7C3F27] hidden sm:inline">•</span>
+                <a
+                  href={brandConfig.contact.instagramUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-xs sm:text-sm text-[#FEEDDD] hover:text-[#F7B6A7] transition-colors"
+                >
+                  <InstagramIcon className="w-4 h-4 text-[#F7B6A7]" />
+                  <span>{brandConfig.contact.instagramHandle}</span>
                 </a>
               </div>
             </Reveal>

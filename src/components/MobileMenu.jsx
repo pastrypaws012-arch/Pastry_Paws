@@ -67,10 +67,10 @@ export function MobileMenu({ isOpen, onClose }) {
                   className="group flex flex-col"
                 >
                   <span className="font-serif text-2xl font-normal tracking-tight text-[#411C10]">
-                    Butter &amp; Bloom
+                    {brandConfig.name}
                   </span>
-                  <span className="font-script text-sm text-[#7C3F27]">
-                    artisan home bakery
+                  <span className="text-[11px] uppercase tracking-widest text-[#A66D54] font-medium mt-0.5">
+                    Artisan Home Bakery
                   </span>
                 </a>
                 <button

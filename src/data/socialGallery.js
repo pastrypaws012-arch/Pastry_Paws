@@ -4,7 +4,7 @@ export const socialGalleryData = [
     image: "/images/hero-cake.jpg",
     caption: "Morning light over freshly arranged pressed pansies on vanilla bean tiers. 🌸",
     likes: 342,
-    tag: "#butterandbloom",
+    tag: "#pastry_paws_06",
     aspect: "square",
   },
   {

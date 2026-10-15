@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Menu, MessageCircle } from 'lucide-react';
 import { brandConfig } from '../data/brand';
 import { MobileMenu } from './MobileMenu';
+import { InstagramIcon } from './Icons';
 
 export function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -27,7 +28,7 @@ export function Navbar() {
           aria-label="Announcement"
           className="bg-[#7C3F27] text-[#FFF9F3] text-[11px] sm:text-xs tracking-widest uppercase py-2 text-center px-4 font-medium flex items-center justify-center gap-2 transition-all duration-300 border-b border-[#5E2B19]/30"
         >
-          <span>🐾 Pastry Paws by Anjana</span>
+          <span>🐾 Pastry Paws • Cakes &amp; Pastries</span>
           <span className="hidden sm:inline opacity-70">•</span>
           <span className="hidden sm:inline">Birthday cakes include complimentary mini cookies</span>
           <span className="hidden sm:inline opacity-70">•</span>
@@ -46,7 +47,7 @@ export function Navbar() {
             {/* Brand Wordmark with Pastry Paw icon */}
             <a
               href="#"
-              className="group flex items-center gap-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7C3F27] rounded-sm"
+              className="group flex items-center gap-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7C3F27] rounded-sm shrink-0"
               aria-label={`${brandConfig.name} - Home`}
             >
               {/* Pastry Paw Icon */}
@@ -68,19 +69,19 @@ export function Navbar() {
                 <span className="font-serif text-2xl sm:text-[1.65rem] font-medium tracking-tight text-[#411C10] group-hover:text-[#7C3F27] transition-colors leading-none">
                   {brandConfig.name}
                 </span>
-                <span className="text-[10px] tracking-[0.2em] uppercase text-[#A66D54] font-medium mt-1">
-                  By Anjana • Baked with Love
+                <span className="text-[10px] tracking-[0.16em] uppercase text-[#A66D54] font-medium mt-1 whitespace-nowrap">
+                  Artisan Bakery • Baked with Love
                 </span>
               </div>
             </a>
 
             {/* Desktop Navigation */}
-            <nav className="hidden lg:flex items-center gap-8" aria-label="Main Navigation">
+            <nav className="hidden lg:flex items-center gap-6 xl:gap-8 mx-4" aria-label="Main Navigation">
               {brandConfig.navLinks.map((link) => (
                 <a
                   key={link.href}
                   href={link.href}
-                  className="relative text-sm tracking-wide text-[#411C10] hover:text-[#7C3F27] transition-colors font-medium py-1 group"
+                  className="relative text-sm tracking-wide text-[#411C10] hover:text-[#7C3F27] transition-colors font-medium py-1 whitespace-nowrap group"
                 >
                   <span>{link.label}</span>
                   <span className="absolute bottom-0 left-0 w-0 h-[1.5px] bg-[#7C3F27] transition-all duration-300 group-hover:w-full" />
@@ -89,15 +90,26 @@ export function Navbar() {
             </nav>
 
             {/* CTA & Mobile Toggle */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
+              <a
+                href={brandConfig.contact.instagramUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hidden sm:inline-flex items-center justify-center w-9 h-9 rounded-full bg-[#FEE5D2] border border-[#D29C83]/50 text-[#7C3F27] hover:bg-[#7C3F27] hover:text-[#FEEDDD] hover:border-[#7C3F27] transition-all shadow-2xs shrink-0"
+                aria-label={`Follow ${brandConfig.contact.instagramHandle} on Instagram`}
+                title={`Follow ${brandConfig.contact.instagramHandle}`}
+              >
+                <InstagramIcon className="w-4 h-4" />
+              </a>
+
               <a
                 href={whatsappUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="hidden sm:inline-flex items-center gap-2 bg-[#7C3F27] text-[#FEEDDD] px-5 py-2.5 rounded-full text-xs md:text-sm font-medium tracking-wider hover:bg-[#5E2B19] transition-all shadow-xs hover:shadow active:scale-[0.98]"
+                className="hidden sm:inline-flex items-center gap-2 bg-[#7C3F27] text-[#FEEDDD] px-4.5 py-2.5 rounded-full text-xs md:text-sm font-medium tracking-wide whitespace-nowrap hover:bg-[#5E2B19] transition-all shadow-xs hover:shadow active:scale-[0.98] shrink-0"
               >
                 <MessageCircle className="w-3.5 h-3.5 text-[#F9C8B5]" />
-                <span>Inquire via WhatsApp</span>
+                <span className="whitespace-nowrap">Inquire on WhatsApp</span>
               </a>
 
               {/* Mobile Menu Button */}

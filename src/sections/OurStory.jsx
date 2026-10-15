@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { brandConfig } from '../data/brand';
 import { Reveal, StaggerContainer, StaggerItem } from '../components/Reveal';
+import { AnimatedScriptWord } from '../components/AnimatedUnderline';
 import { Sparkles, Heart, Utensils } from 'lucide-react';
 
 export function OurStory() {
@@ -10,7 +11,7 @@ export function OurStory() {
   return (
     <section
       id="story"
-      className="py-20 md:py-32 bg-[#FEEDDD] relative overflow-hidden"
+      className="pt-8 pb-16 md:pt-12 md:pb-24 bg-[#FEEDDD] relative overflow-hidden"
     >
       <div className="max-w-7xl mx-auto px-5 sm:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
@@ -67,7 +68,16 @@ export function OurStory() {
             {/* Script Tagline Accent */}
             <Reveal delay={0.2} duration={0.6}>
               <p className="font-script text-2xl sm:text-3xl text-[#7C3F27] mt-2 mb-4">
-                "Baking is the art of turning simple ingredients into lasting memories."
+                "Baking is the art of turning simple ingredients into{' '}
+                <AnimatedScriptWord
+                  underlineColor="#D29C83"
+                  delay={0.4}
+                  variant="loop"
+                  className="text-[#7C3F27]"
+                >
+                  lasting memories.
+                </AnimatedScriptWord>
+                "
               </p>
             </Reveal>
 

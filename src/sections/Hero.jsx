@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { ArrowDown, Sparkles, Heart } from 'lucide-react';
 import { brandConfig } from '../data/brand';
 import { Button } from '../components/Button';
+import { AnimatedScriptWord } from '../components/AnimatedUnderline';
 import { useReducedMotionPreference } from '../hooks/useReducedMotionPreference';
 
 export function Hero() {
@@ -43,9 +44,13 @@ export function Hero() {
               className="font-serif text-4xl sm:text-5xl md:text-6xl xl:text-[4rem] text-[#411C10] font-normal leading-[1.08] tracking-tight"
             >
               Sweet treats for{' '}
-              <span className="font-script text-5xl sm:text-6xl md:text-7xl text-[#7C3F27] block sm:inline font-normal">
+              <AnimatedScriptWord
+                underlineColor="#F7B6A7"
+                delay={0.7}
+                className="font-script text-5xl sm:text-6xl md:text-7xl text-[#7C3F27] block sm:inline font-normal"
+              >
                 every mood.
-              </span>
+              </AnimatedScriptWord>
             </motion.h1>
 
             {/* Supporting Copy */}
@@ -55,7 +60,7 @@ export function Hero() {
               transition={{ duration: 0.7, delay: 0.4 }}
               className="mt-5 text-base sm:text-lg text-[#7C3F27] leading-relaxed max-w-lg font-normal"
             >
-              Cakes, pastries, fudgy brownies, cupcakes, and gooey choco lava baked with love by Anjana. Every birthday cake includes complimentary mini cookies!
+              Cakes, pastries, fudgy brownies, cupcakes, and gooey choco lava baked with love by Pastry Paws. Every birthday cake includes complimentary mini cookies!
             </motion.p>
 
             {/* Call to Actions */}
@@ -69,7 +74,7 @@ export function Hero() {
                 Explore Menu
               </Button>
               <Button href="#story" variant="secondary">
-                Meet Anjana
+                Our Story
               </Button>
             </motion.div>
 

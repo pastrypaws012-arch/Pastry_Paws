@@ -1,5 +1,6 @@
 import React from 'react';
 import { Reveal } from './Reveal';
+import { AnimatedScriptWord } from './AnimatedUnderline';
 
 export function SectionHeading({
   eyebrow,
@@ -36,9 +37,18 @@ export function SectionHeading({
 
       {accentScript && (
         <Reveal delay={0.1} duration={0.5}>
-          <span className="font-script text-2xl md:text-3xl text-[#D29C83] -mb-1 block">
-            {accentScript}
-          </span>
+          <div className="mb-1">
+            <AnimatedScriptWord
+              underlineColor={light ? '#F7B6A7' : '#D29C83'}
+              delay={0.35}
+              variant="swoosh"
+              className={`font-script text-2xl md:text-3xl ${
+                light ? 'text-[#F9C8B5]' : 'text-[#D29C83]'
+              }`}
+            >
+              {accentScript}
+            </AnimatedScriptWord>
+          </div>
         </Reveal>
       )}
 
