@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ArrowUp, Mail, Phone, MessageCircle, Heart } from 'lucide-react';
+import { ArrowUp, Mail, Phone, MessageCircle, Heart, Package, Search } from 'lucide-react';
 import { InstagramIcon } from './Icons';
 import { brandConfig } from '../data/brand';
 
@@ -111,6 +111,17 @@ export function Footer() {
                 <Phone className="w-4 h-4" />
               </a>
             </div>
+
+            {/* Track Order Status Quick Button */}
+            <div className="pt-2">
+              <Link
+                to="/track-order"
+                className="inline-flex items-center gap-2 bg-[#FEE5D2] hover:bg-[#FFF9F3] text-[#411C10] px-3.5 py-2 rounded-xl text-xs font-semibold shadow-xs hover:shadow transition-all group"
+              >
+                <Package className="w-4 h-4 text-[#7C3F27] group-hover:scale-110 transition-transform" />
+                <span>Track Order Status</span>
+              </Link>
+            </div>
           </div>
         </div>
 
@@ -123,6 +134,16 @@ export function Footer() {
           </p>
 
           <div className="flex items-center gap-4">
+            <Link
+              to="/track-order"
+              className="text-[11px] text-[#F9C8B5] hover:text-[#FFF9F3] underline underline-offset-4 transition-colors font-medium flex items-center gap-1"
+            >
+              <Package className="w-3 h-3" />
+              <span>Track Order Status</span>
+            </Link>
+
+            <span className="opacity-40">•</span>
+
             <Link
               to="/admin"
               className="text-[11px] text-[#D29C83] hover:text-[#FEEDDD] underline underline-offset-4 transition-colors"

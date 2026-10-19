@@ -21,14 +21,13 @@ export const brandConfig = {
     pickupLocation: "Home Bakery Studio • Pastry Paws"
   },
 
-  // Navigation Links
+  // Navigation Links (curated to keep navbar airy and elegant)
   navLinks: [
     { label: "Home", href: "/" },
     { label: "Menu", href: "/menu" },
     { label: "Our Story", href: "/#story" },
     { label: "Specialties", href: "/#specialties" },
     { label: "Reviews", href: "/#testimonials" },
-    { label: "Moments", href: "/#moments" },
   ],
 
   // Story & Values

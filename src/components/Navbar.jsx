@@ -78,7 +78,7 @@ export function Navbar() {
             </Link>
 
             {/* Desktop Navigation */}
-            <nav className="hidden lg:flex items-center gap-6 xl:gap-8 mx-4" aria-label="Main Navigation">
+            <nav className="hidden lg:flex items-center gap-8 xl:gap-10" aria-label="Main Navigation">
               {brandConfig.navLinks.map((link) => {
                 const isExactActive =
                   link.href === '/'
@@ -89,15 +89,15 @@ export function Navbar() {
                   <Link
                     key={link.href}
                     to={link.href}
-                    className={`relative text-sm tracking-wide transition-colors font-medium py-1 whitespace-nowrap group ${
+                    className={`relative text-[14px] tracking-wide transition-colors font-medium py-1 whitespace-nowrap group ${
                       isExactActive
                         ? 'text-[#7C3F27] font-semibold'
-                        : 'text-[#411C10] hover:text-[#7C3F27]'
+                        : 'text-[#411C10]/85 hover:text-[#7C3F27]'
                     }`}
                   >
                     <span>{link.label}</span>
                     <span
-                      className={`absolute bottom-0 left-0 h-[1.5px] bg-[#7C3F27] transition-all duration-300 ${
+                      className={`absolute bottom-0 left-0 h-[2px] rounded-full bg-[#7C3F27] transition-all duration-300 ${
                         isExactActive ? 'w-full' : 'w-0 group-hover:w-full'
                       }`}
                     />

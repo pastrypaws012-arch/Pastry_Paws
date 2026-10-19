@@ -5,6 +5,7 @@ import { Footer } from './components/Footer';
 import { ScrollToTop } from './components/ScrollToTop';
 import { HomePage } from './pages/HomePage';
 import { MenuPage } from './pages/MenuPage';
+import { TrackOrderPage } from './pages/TrackOrderPage';
 import { AdminPage } from './pages/AdminPage';
 
 function App() {
@@ -41,6 +42,26 @@ function App() {
                 <>
                   <Navbar />
                   <MenuPage />
+                  <Footer />
+                </>
+              }
+            />
+            <Route
+              path="/track-order"
+              element={
+                <>
+                  <Navbar />
+                  <TrackOrderPage />
+                  <Footer />
+                </>
+              }
+            />
+            <Route
+              path="/order-status"
+              element={
+                <>
+                  <Navbar />
+                  <TrackOrderPage />
                   <Footer />
                 </>
               }

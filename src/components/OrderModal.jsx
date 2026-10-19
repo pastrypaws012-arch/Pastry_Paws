@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   X,
@@ -13,6 +14,7 @@ import {
   MessageCircle,
   ShieldCheck,
   CreditCard,
+  Truck,
 } from 'lucide-react';
 import { brandConfig } from '../data/brand';
 import { API_BASE_URL } from '../utils/api';
@@ -204,22 +206,32 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
-                  <a
-                    href={whatsappReceiptUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 inline-flex items-center justify-center gap-2 bg-[#25D366] text-white hover:bg-[#1EBE5D] py-2.5 px-4 rounded-xl text-xs sm:text-sm font-medium transition-all shadow-xs hover:shadow"
-                  >
-                    <MessageCircle className="w-4 h-4" />
-                    <span>Send Order Copy on WhatsApp</span>
-                  </a>
-                  <button
+                <div className="flex flex-col gap-2 pt-2">
+                  <div className="flex flex-col sm:flex-row gap-2.5">
+                    <a
+                      href={whatsappReceiptUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 inline-flex items-center justify-center gap-2 bg-[#25D366] text-white hover:bg-[#1EBE5D] py-2.5 px-4 rounded-xl text-xs sm:text-sm font-medium transition-all shadow-xs hover:shadow"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                      <span>Send Order Copy on WhatsApp</span>
+                    </a>
+                    <button
+                      onClick={handleResetAndClose}
+                      className="inline-flex items-center justify-center py-2.5 px-5 rounded-xl border border-[#D29C83]/40 text-[#411C10] hover:bg-[#FEEDDD] text-xs sm:text-sm font-medium transition-colors"
+                    >
+                      Close
+                    </button>
+                  </div>
+                  <Link
+                    to={`/track-order?phone=${encodeURIComponent(placedOrder.customerPhone || '')}`}
                     onClick={handleResetAndClose}
-                    className="inline-flex items-center justify-center py-2.5 px-5 rounded-xl border border-[#D29C83]/40 text-[#411C10] hover:bg-[#FEEDDD] text-xs sm:text-sm font-medium transition-colors"
+                    className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-[#FEEDDD] text-[#7C3F27] hover:bg-[#FEE5D2] border border-[#D29C83]/30 text-xs sm:text-sm font-semibold transition-colors"
                   >
-                    Close
-                  </button>
+                    <Truck className="w-4 h-4" />
+                    <span>Track Live Status & Past Orders</span>
+                  </Link>
                 </div>
               </div>
             ) : (
