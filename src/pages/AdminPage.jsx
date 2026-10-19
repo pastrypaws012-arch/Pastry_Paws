@@ -497,7 +497,7 @@ export function AdminPage() {
                             alt={item.title}
                             className="w-12 h-12 rounded-xl object-cover border border-[#D29C83]/30 bg-[#FEEDDD]"
                             onError={(e) => {
-                              e.currentTarget.src = '/images/hero-cake.jpg';
+                              e.currentTarget.src = 'https://res.cloudinary.com/ku59ko3p/image/upload/v1792430625/PastryPaws/hero-cake.jpg';
                             }}
                           />
                         </td>

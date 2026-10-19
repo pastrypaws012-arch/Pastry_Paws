@@ -1,7 +1,7 @@
 export const socialGalleryData = [
   {
     id: "insta-1",
-    image: "/images/hero-cake.jpg",
+    image: "https://res.cloudinary.com/ku59ko3p/image/upload/v1792430625/PastryPaws/hero-cake.jpg",
     caption: "Morning light over freshly arranged pressed pansies on vanilla bean tiers. 🌸",
     likes: 342,
     tag: "#pastry_paws_06",
@@ -9,7 +9,7 @@ export const socialGalleryData = [
   },
   {
     id: "insta-2",
-    image: "/images/baker-story.jpg",
+    image: "https://res.cloudinary.com/ku59ko3p/image/upload/v1792430617/PastryPaws/baker-story.jpg",
     caption: "The quiet rhythm of the morning kitchen. Placing every petal with patience and care.",
     likes: 518,
     tag: "#handcraftedwithlove",
@@ -17,7 +17,7 @@ export const socialGalleryData = [
   },
   {
     id: "insta-3",
-    image: "/images/brownies.jpg",
+    image: "https://res.cloudinary.com/ku59ko3p/image/upload/v1792430622/PastryPaws/brownies.jpg",
     caption: "Still warm from the oven: 70% dark Belgian cocoa with flaky sea salt shards. 🍫",
     likes: 420,
     tag: "#slowbaking",
@@ -25,7 +25,7 @@ export const socialGalleryData = [
   },
   {
     id: "insta-4",
-    image: "https://images.unsplash.com/photo-1587668178277-295251f900ce?auto=format&fit=crop&w=600&q=80",
+    image: "https://res.cloudinary.com/ku59ko3p/image/upload/v1792430642/PastryPaws/f7gt5kkpxtkpch21vewi.jpg",
     caption: "Delicate peach rosettes and pearls boxed up for an afternoon garden gathering.",
     likes: 289,
     tag: "#cupcakeart",
@@ -33,7 +33,7 @@ export const socialGalleryData = [
   },
   {
     id: "insta-5",
-    image: "https://images.unsplash.com/photo-1535141192574-5d4897c13136?auto=format&fit=crop&w=600&q=80",
+    image: "https://res.cloudinary.com/ku59ko3p/image/upload/v1792430631/PastryPaws/cf3db6t4wraj6kpab0ft.jpg",
     caption: "A timeless tiered centerpiece for Clara & Julian on their unforgettable evening.",
     likes: 671,
     tag: "#weddingcake",
@@ -41,7 +41,7 @@ export const socialGalleryData = [
   },
   {
     id: "insta-6",
-    image: "https://images.unsplash.com/photo-1499636136210-6f4ee915583e?auto=format&fit=crop&w=600&q=80",
+    image: "https://res.cloudinary.com/ku59ko3p/image/upload/v1792430640/PastryPaws/rnfooccjon09fg86z1va.jpg",
     caption: "48-hour fermented cookie dough with toasted pecans and brown butter aroma filling the studio.",
     likes: 395,
     tag: "#freshfromtheoven",

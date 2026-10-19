@@ -115,8 +115,9 @@ export function Hero() {
               {/* Main Image Container */}
               <div className="relative rounded-2xl overflow-hidden shadow-lg h-[360px] sm:h-[400px] lg:h-[450px] w-full bg-[#FDEADA]">
                 <img
-                  src="/images/hero-cake.jpg"
-                  alt="Artisanal multi-tiered botanical celebration cake by Butter & Bloom"
+                  src="https://res.cloudinary.com/ku59ko3p/image/upload/v1792430625/PastryPaws/hero-cake.jpg"
+                  onError={(e) => { e.currentTarget.src = '/images/hero-cake.jpg'; }}
+                  alt="Artisanal celebration cake by Pastry Paws"
                   loading="eager"
                   className="w-[200%] max-w-none h-full object-cover object-left transition-transform duration-1000 hover:scale-103"
                 />

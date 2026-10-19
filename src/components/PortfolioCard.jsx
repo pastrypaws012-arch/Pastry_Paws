@@ -19,8 +19,8 @@ export function PortfolioCard({ item, onClick, priority = false }) {
           onError={(e) => {
             e.currentTarget.onerror = null;
             e.currentTarget.src = item.category?.includes('Brownie') || item.category?.includes('Cookie')
-              ? '/images/brownies.jpg'
-              : '/images/hero-cake.jpg';
+              ? 'https://res.cloudinary.com/ku59ko3p/image/upload/v1792430622/PastryPaws/brownies.jpg'
+              : 'https://res.cloudinary.com/ku59ko3p/image/upload/v1792430625/PastryPaws/hero-cake.jpg';
           }}
           className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-106"
         />

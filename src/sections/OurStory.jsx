@@ -26,8 +26,9 @@ export function OurStory() {
                 {/* Main image container */}
                 <div className="relative rounded-2xl overflow-hidden shadow-lg aspect-4/5 bg-[#FDEADA]">
                   <img
-                    src="/images/baker-story.jpg"
-                    alt="Artisan baker lovingly placing delicate edible botanicals on a tiered cake"
+                    src="https://res.cloudinary.com/ku59ko3p/image/upload/v1792430617/PastryPaws/baker-story.jpg"
+                    onError={(e) => { e.currentTarget.src = '/images/baker-story.jpg'; }}
+                    alt="Artisan baker crafting homemade cakes at Pastry Paws"
                     loading="lazy"
                     className="w-full h-full object-cover transition-transform duration-700 hover:scale-103"
                   />

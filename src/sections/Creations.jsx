@@ -4,10 +4,13 @@ import { ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import { SectionHeading } from '../components/SectionHeading';
 import { PortfolioCard } from '../components/PortfolioCard';
 import { ImageLightbox } from '../components/ImageLightbox';
-import { categories, creationsData } from '../data/creations';
+import { categories as defaultCategories, creationsData as defaultCreations } from '../data/creations';
+import { API_BASE_URL } from '../utils/api';
 import { Reveal } from '../components/Reveal';
 
 export function Creations() {
+  const [menuItems, setMenuItems] = useState(defaultCreations);
+  const [categoryList, setCategoryList] = useState(defaultCategories);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [activeLightboxIndex, setActiveLightboxIndex] = useState(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -15,8 +18,40 @@ export function Creations() {
 
   const scrollRef = useRef(null);
 
+  // Fetch live menu items & categories from MongoDB Atlas backend
+  useEffect(() => {
+    let isMounted = true;
+    const fetchLiveMenu = async () => {
+      try {
+        const [itemsRes, catRes] = await Promise.all([
+          fetch(`${API_BASE_URL}/api/items`),
+          fetch(`${API_BASE_URL}/api/categories`),
+        ]);
+
+        if (itemsRes.ok) {
+          const itemsJson = await itemsRes.json();
+          if (itemsJson.success && itemsJson.data && itemsJson.data.length > 0 && isMounted) {
+            setMenuItems(itemsJson.data);
+          }
+        }
+
+        if (catRes.ok) {
+          const catJson = await catRes.json();
+          if (catJson.success && catJson.data && catJson.data.length > 0 && isMounted) {
+            setCategoryList(['All', ...catJson.data.map((c) => c.name)]);
+          }
+        }
+      } catch {
+        // Keeps graceful fallback
+      }
+    };
+
+    fetchLiveMenu();
+    return () => { isMounted = false; };
+  }, []);
+
   // Filter items by category
-  const filteredItems = creationsData.filter((item) => {
+  const filteredItems = menuItems.filter((item) => {
     if (selectedCategory === 'All') return true;
     return item.category === selectedCategory;
   });
@@ -109,7 +144,7 @@ export function Creations() {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8">
             {/* Filter Pills */}
             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-1.5 sm:gap-2">
-              {categories.map((cat) => {
+              {categoryList.map((cat) => {
                 const isActive = selectedCategory === cat;
                 return (
                   <button
