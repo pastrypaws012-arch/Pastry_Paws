@@ -34,6 +34,24 @@ export function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [searchFilter, setSearchFilter] = useState('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('All');
+  const [systemStatus, setSystemStatus] = useState(null);
+  const [statusLoading, setStatusLoading] = useState(false);
+
+  // Fetch Live System Status (Database & Cloudinary)
+  const fetchSystemStatus = async () => {
+    setStatusLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/system/status`);
+      const json = await res.json();
+      if (json.success) {
+        setSystemStatus(json);
+      }
+    } catch (err) {
+      console.error('System status error:', err);
+    } finally {
+      setStatusLoading(false);
+    }
+  };
 
   // Notifications
   const [toast, setToast] = useState(null);
@@ -128,6 +146,7 @@ export function AdminPage() {
       setOfferings(defaultOfferings);
     } finally {
       setLoading(false);
+      fetchSystemStatus();
     }
   };
 
@@ -298,6 +317,11 @@ export function AdminPage() {
 
   // Offering Handlers
   const handleOpenOfferingModal = (offering = null) => {
+    if (!offering && offerings.length >= 4) {
+      showToast('Maximum 4 offerings limit reached (UI restriction). Please edit or delete an existing offering.', 'error');
+      return;
+    }
+
     if (offering) {
       setEditingOffering(offering);
       setOfferingForm({
@@ -391,22 +415,27 @@ export function AdminPage() {
   };
 
   const handleDeleteOffering = async (offering) => {
+    const targetId = offering._id || offering.id;
+    if (!targetId) return;
+
     if (!window.confirm(`Delete offering "${offering.title}"?`)) return;
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/offerings/${offering._id || offering.id}`, {
+      const res = await fetch(`${API_BASE_URL}/api/offerings/${encodeURIComponent(targetId)}`, {
         method: 'DELETE',
       });
       const data = await res.json();
       if (data.success) {
         showToast('Offering deleted successfully!');
+        setOfferings((prev) => prev.filter((o) => (o._id || o.id) !== targetId));
         fetchData();
       } else {
         showToast(data.message || 'Error deleting offering', 'error');
       }
-    } catch {
-      setOfferings((prev) => prev.filter((o) => (o._id || o.id) !== (offering._id || offering.id)));
-      showToast('Offering removed from local state', 'success');
+    } catch (err) {
+      console.error('Delete offering error:', err);
+      setOfferings((prev) => prev.filter((o) => (o._id || o.id) !== targetId));
+      showToast('Offering removed from list', 'success');
     }
   };
 
@@ -824,13 +853,21 @@ export function AdminPage() {
                   These are the featured specialty cards showcased in the homepage "OUR OFFERINGS" section.
                 </p>
               </div>
-              <button
-                onClick={() => handleOpenOfferingModal()}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 bg-[#7C3F27] text-[#FEEDDD] hover:bg-[#5E2B19] py-2 px-3.5 rounded-xl text-xs sm:text-sm font-medium transition-all shadow-xs cursor-pointer shrink-0"
-              >
-                <Plus className="w-4 h-4" />
-                <span>New Offering</span>
-              </button>
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                {offerings.length >= 4 ? (
+                  <div className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-300">
+                    <span>Limit Reached (Max 4/4)</span>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => handleOpenOfferingModal()}
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 bg-[#7C3F27] text-[#FEEDDD] hover:bg-[#5E2B19] py-2 px-3.5 rounded-xl text-xs sm:text-sm font-medium transition-all shadow-xs cursor-pointer shrink-0"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>New Offering ({offerings.length}/4)</span>
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -999,61 +1036,147 @@ export function AdminPage() {
           </div>
         )}
 
-        {/* TAB 4: DATABASE & Image STATUS */}
+        {/* TAB 4: DATABASE & CLOUDINARY LIVE STATUS */}
         {activeTab === 'database' && (
-          <div className="pt-6 space-y-6 max-w-3xl">
+          <div className="pt-5 space-y-5 max-w-4xl">
+            {/* Header & Refresh */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div>
+                <h3 className="font-serif text-lg text-[#411C10]">System & Cloud Status</h3>
+                <p className="text-xs text-[#7C3F27]">
+                  Live connection health for MongoDB Atlas, Cloudinary CDN, and data collections.
+                </p>
+              </div>
+              <button
+                onClick={fetchSystemStatus}
+                disabled={statusLoading}
+                className="inline-flex items-center gap-1.5 bg-[#FFF9F3] hover:bg-[#FEEDDD] text-[#7C3F27] border border-[#D29C83]/30 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all shadow-2xs cursor-pointer"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${statusLoading ? 'animate-spin' : ''}`} />
+                <span>Refresh Status</span>
+              </button>
+            </div>
+
+            {/* Quick Metrics Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="p-3.5 rounded-2xl bg-[#FFF9F3] border border-[#D29C83]/30 shadow-2xs text-center">
+                <span className="text-xl sm:text-2xl font-bold text-[#7C3F27] font-serif block">
+                  {systemStatus?.counts?.menuItems ?? items.length}
+                </span>
+                <span className="text-[11px] uppercase tracking-wider text-[#A66D54] font-semibold">
+                  Menu Items
+                </span>
+              </div>
+              <div className="p-3.5 rounded-2xl bg-[#FFF9F3] border border-[#D29C83]/30 shadow-2xs text-center">
+                <span className="text-xl sm:text-2xl font-bold text-[#7C3F27] font-serif block">
+                  {systemStatus?.counts?.categories ?? categories.length}
+                </span>
+                <span className="text-[11px] uppercase tracking-wider text-[#A66D54] font-semibold">
+                  Categories
+                </span>
+              </div>
+              <div className="p-3.5 rounded-2xl bg-[#FFF9F3] border border-[#D29C83]/30 shadow-2xs text-center">
+                <span className="text-xl sm:text-2xl font-bold text-[#7C3F27] font-serif block">
+                  {systemStatus?.counts?.offerings ?? offerings.length}/4
+                </span>
+                <span className="text-[11px] uppercase tracking-wider text-[#A66D54] font-semibold">
+                  Offerings
+                </span>
+              </div>
+              <div className="p-3.5 rounded-2xl bg-[#FFF9F3] border border-[#D29C83]/30 shadow-2xs text-center">
+                <span className="text-xl sm:text-2xl font-bold text-[#7C3F27] font-serif block">
+                  {systemStatus?.counts?.orders ?? orders.length}
+                </span>
+                <span className="text-[11px] uppercase tracking-wider text-[#A66D54] font-semibold">
+                  Live Orders
+                </span>
+              </div>
+            </div>
+
             {/* MongoDB Atlas Card */}
-            <div className="p-5 rounded-2xl bg-[#FFF9F3] border border-[#D29C83]/30 shadow-xs space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center border border-emerald-200">
-                  <Database className="w-5 h-5" />
+            <div className="p-5 rounded-2xl bg-[#FFF9F3] border border-[#D29C83]/30 shadow-2xs space-y-3.5">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center border border-emerald-200 shrink-0">
+                    <Database className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-serif text-base text-[#411C10]">MongoDB Atlas Database</h3>
+                    <p className="text-xs text-[#7C3F27]">
+                      Cloud database storing dynamic categories, products, offerings, and customer orders.
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-serif text-base text-[#411C10]">MongoDB Atlas Database</h3>
-                  <p className="text-xs text-[#7C3F27]">
-                    Cloud document storage for dynamic categories, products, and customer orders.
-                  </p>
-                </div>
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold shrink-0 ${
+                  systemStatus?.database?.connected !== false
+                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                    : 'bg-rose-100 text-rose-800 border border-rose-300'
+                }`}>
+                  <span className={`w-2 h-2 rounded-full ${systemStatus?.database?.connected !== false ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+                  <span>{systemStatus?.database?.status || 'Connected'}</span>
+                </span>
               </div>
 
-              <div className="p-3 bg-[#FEEDDD]/40 rounded-xl text-xs space-y-1.5 border border-[#D29C83]/25">
-                <div className="flex justify-between">
-                  <span className="text-[#A66D54]">Connection String:</span>
-                  <span className="font-mono text-[#411C10] truncate max-w-xs">
-                    {process.env.MONGODB_URI ? 'Configured in .env' : 'Set MONGODB_URI in .env file'}
+              <div className="p-3.5 bg-[#FEEDDD]/40 rounded-xl text-xs space-y-2 border border-[#D29C83]/25">
+                <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
+                  <span className="text-[#A66D54] font-medium">Cluster Host:</span>
+                  <span className="font-mono text-[#411C10] break-all">
+                    {systemStatus?.database?.host || 'ac-cylwyxj-shard-00-00.60jtyl4.mongodb.net'}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-[#A66D54]">Active Collections:</span>
-                  <span className="font-semibold text-[#7C3F27]">categories, menuitems, orders</span>
+                <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
+                  <span className="text-[#A66D54] font-medium">Database Name:</span>
+                  <span className="font-semibold text-[#7C3F27]">
+                    {systemStatus?.database?.name || 'pastry_paws'}
+                  </span>
+                </div>
+                <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
+                  <span className="text-[#A66D54] font-medium">Collections:</span>
+                  <span className="text-[#411C10]">
+                    categories, menuitems, orders, offerings
+                  </span>
                 </div>
               </div>
             </div>
 
             {/* Cloudinary CDN Card */}
-            <div className="p-5 rounded-2xl bg-[#FFF9F3] border border-[#D29C83]/30 shadow-xs space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center border border-blue-200">
-                  <Cloud className="w-5 h-5" />
+            <div className="p-5 rounded-2xl bg-[#FFF9F3] border border-[#D29C83]/30 shadow-2xs space-y-3.5">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center border border-blue-200 shrink-0">
+                    <Cloud className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-serif text-base text-[#411C10]">Cloudinary Image CDN</h3>
+                    <p className="text-xs text-[#7C3F27]">
+                      High-speed media storage, WebP compression, and direct image upload pipeline.
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-serif text-base text-[#411C10]">Cloudinary Image CDN</h3>
-                  <p className="text-xs text-[#7C3F27]">
-                    High-speed global image delivery, automatic WebP format conversion, and responsive optimization.
-                  </p>
-                </div>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300 shrink-0">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>{systemStatus?.cloudinary?.configured ? 'Active' : 'Configured'}</span>
+                </span>
               </div>
 
-              <div className="p-3 bg-[#FEEDDD]/40 rounded-xl text-xs space-y-1.5 border border-[#D29C83]/25">
-                <div className="flex justify-between">
-                  <span className="text-[#A66D54]">Cloudinary Keys:</span>
-                  <span className="font-semibold text-[#7C3F27]">
-                    Configure CLOUDINARY_CLOUD_NAME, API_KEY, & API_SECRET in Backend/.env
+              <div className="p-3.5 bg-[#FEEDDD]/40 rounded-xl text-xs space-y-2 border border-[#D29C83]/25">
+                <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
+                  <span className="text-[#A66D54] font-medium">Cloud Name:</span>
+                  <span className="font-mono text-[#7C3F27] font-bold">
+                    {systemStatus?.cloudinary?.cloudName || 'ku59ko3p'}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-[#A66D54]">Fallback Storage:</span>
-                  <span className="text-[#7C3F27]">Local uploads folder (works automatically offline)</span>
+                <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
+                  <span className="text-[#A66D54] font-medium">Default Folder:</span>
+                  <span className="text-[#411C10]">
+                    {systemStatus?.cloudinary?.folder || 'PastryPaws'}
+                  </span>
+                </div>
+                <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
+                  <span className="text-[#A66D54] font-medium">Optimization:</span>
+                  <span className="text-[#411C10]">
+                    Auto-format (WebP / AVIF), dynamic thumbnail resizing
+                  </span>
                 </div>
               </div>
             </div>

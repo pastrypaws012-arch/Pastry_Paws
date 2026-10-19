@@ -87,6 +87,50 @@ export function TrackOrderPage() {
   const [hasSearched, setHasSearched] = useState(false);
   const [copiedId, setCopiedId] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
+  
+  // Customer cancellation state
+  const [orderToCancel, setOrderToCancel] = useState(null);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelModalError, setCancelModalError] = useState('');
+  const [cancelToast, setCancelToast] = useState('');
+
+  // Handle Customer Cancel Order (Pending only)
+  const handleConfirmCancel = async () => {
+    if (!orderToCancel) return;
+    setCancelling(true);
+    setCancelModalError('');
+
+    try {
+      const targetId = orderToCancel._id || orderToCancel.orderId;
+      const res = await fetch(`${API_BASE_URL}/api/orders/${targetId}/customer-cancel`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        // Update local orders list to reflect cancelled status immediately
+        setOrders((prev) =>
+          prev.map((o) =>
+            o.orderId === orderToCancel.orderId || o._id === orderToCancel._id
+              ? { ...o, status: 'cancelled' }
+              : o
+          )
+        );
+        setCancelToast(`Order #${orderToCancel.orderId} was successfully cancelled.`);
+        setTimeout(() => setCancelToast(''), 5000);
+        setOrderToCancel(null);
+      } else {
+        setCancelModalError(data.message || 'Unable to cancel this order.');
+      }
+    } catch {
+      setCancelModalError('Failed to connect to the server. Please check your network and try again.');
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   // Handle Order Lookup
   const handleLookup = async (phoneToSearch) => {
@@ -509,15 +553,39 @@ export function TrackOrderPage() {
                           : 'Recent'}
                       </span>
 
-                      <a
-                        href={getWhatsAppInquiryUrl(order)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#25D366]/15 hover:bg-[#25D366] text-[#128C7E] hover:text-white border border-[#25D366]/40 text-xs font-semibold transition-all shadow-2xs hover:shadow cursor-pointer"
-                      >
-                        <MessageCircle className="w-3.5 h-3.5" />
-                        <span>Inquire on WhatsApp</span>
-                      </a>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {/* Cancel button: STRICT RULE - ONLY shown if status is 'pending' */}
+                        {statusKey === 'pending' && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCancelModalError('');
+                              setOrderToCancel(order);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 hover:border-rose-600 text-xs font-semibold transition-all shadow-2xs hover:shadow cursor-pointer"
+                          >
+                            <XCircle className="w-3.5 h-3.5" />
+                            <span>Cancel Order</span>
+                          </button>
+                        )}
+
+                        {/* Strict Rule: For confirmed or baking, cancel is forbidden for users */}
+                        {(statusKey === 'confirmed' || statusKey === 'baking') && (
+                          <span className="text-[11px] text-[#7C3F27]/80 bg-[#FEEDDD]/60 px-2.5 py-1 rounded-lg border border-[#D29C83]/30">
+                            🔒 In preparation (Cannot be cancelled)
+                          </span>
+                        )}
+
+                        <a
+                          href={getWhatsAppInquiryUrl(order)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#25D366]/15 hover:bg-[#25D366] text-[#128C7E] hover:text-white border border-[#25D366]/40 text-xs font-semibold transition-all shadow-2xs hover:shadow cursor-pointer"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5" />
+                          <span>Inquire on WhatsApp</span>
+                        </a>
+                      </div>
                     </div>
                   </div>
                 </motion.div>
@@ -526,6 +594,85 @@ export function TrackOrderPage() {
           </div>
         </div>
       </div>
+
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {cancelToast && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed top-6 right-6 z-50 bg-emerald-700 text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-3 border border-emerald-500/30 text-sm font-medium"
+          >
+            <CheckCircle2 className="w-5 h-5 text-emerald-200" />
+            <span>{cancelToast}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Cancel Order Confirmation Modal */}
+      <AnimatePresence>
+        {orderToCancel && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-[#FFF9F3] border border-[#D29C83]/40 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center">
+                <XCircle className="w-6 h-6" />
+              </div>
+
+              <div>
+                <h3 className="font-serif text-xl text-[#411C10]">
+                  Cancel Order #{orderToCancel.orderId}?
+                </h3>
+                <p className="text-xs text-[#7C3F27] mt-1 leading-relaxed">
+                  Are you sure you want to cancel your order for{' '}
+                  <strong className="text-[#411C10]">{orderToCancel.itemTitle}</strong> ({orderToCancel.selectedSize})?
+                  This action cannot be undone once confirmed.
+                </p>
+              </div>
+
+              {cancelModalError && (
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium">
+                  {cancelModalError}
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  disabled={cancelling}
+                  onClick={() => {
+                    setOrderToCancel(null);
+                    setCancelModalError('');
+                  }}
+                  className="px-4 py-2.5 rounded-xl border border-[#D29C83]/40 text-xs font-semibold text-[#7C3F27] hover:bg-[#FEEDDD] transition-colors cursor-pointer"
+                >
+                  Keep Order
+                </button>
+                <button
+                  type="button"
+                  disabled={cancelling}
+                  onClick={handleConfirmCancel}
+                  className="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {cancelling ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Cancelling...</span>
+                    </>
+                  ) : (
+                    <span>Yes, Cancel Order</span>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
