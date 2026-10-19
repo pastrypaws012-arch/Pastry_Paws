@@ -21,15 +21,16 @@ import {
   Eye,
   Check,
 } from 'lucide-react';
-import { categories as defaultCategories, creationsData as defaultCreations } from '../data/creations';
+import { categories as defaultCategories, creationsData as defaultCreations, specialtiesData as defaultOfferings } from '../data/creations';
 import { brandConfig } from '../data/brand';
 import { API_BASE_URL } from '../utils/api';
 
 export function AdminPage() {
-  const [activeTab, setActiveTab] = useState('items'); // 'items', 'categories', 'orders', 'database'
+  const [activeTab, setActiveTab] = useState('items'); // 'items', 'offerings', 'categories', 'orders', 'database'
   const [items, setItems] = useState([]);
   const [categories, setCategories] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [offerings, setOfferings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchFilter, setSearchFilter] = useState('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('All');
@@ -60,14 +61,30 @@ export function AdminPage() {
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [categoryName, setCategoryName] = useState('');
 
+  // Offering Form Modal State
+  const [isOfferingModalOpen, setIsOfferingModalOpen] = useState(false);
+  const [editingOffering, setEditingOffering] = useState(null);
+  const [offeringForm, setOfferingForm] = useState({
+    number: '01',
+    title: '',
+    subtitle: '',
+    description: '',
+    price: '',
+    image: '',
+    cloudinaryPublicId: '',
+    accent: '',
+    link: '#contact',
+  });
+
   // Fetch initial data
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [itemsRes, catsRes, ordersRes] = await Promise.all([
+      const [itemsRes, catsRes, ordersRes, offeringsRes] = await Promise.all([
         fetch(`${API_BASE_URL}/api/items`),
         fetch(`${API_BASE_URL}/api/categories`),
         fetch(`${API_BASE_URL}/api/orders`),
+        fetch(`${API_BASE_URL}/api/offerings`),
       ]);
 
       if (itemsRes.ok) {
@@ -93,10 +110,22 @@ export function AdminPage() {
         const data = await ordersRes.json();
         setOrders(data.data || []);
       }
+
+      if (offeringsRes.ok) {
+        const data = await offeringsRes.json();
+        if (data.data && data.data.length > 0) {
+          setOfferings(data.data);
+        } else {
+          setOfferings(defaultOfferings);
+        }
+      } else {
+        setOfferings(defaultOfferings);
+      }
     } catch {
       // Offline fallback
       setItems(defaultCreations);
       setCategories(defaultCategories.filter((c) => c !== 'All').map((name, i) => ({ name, order: i + 1 })));
+      setOfferings(defaultOfferings);
     } finally {
       setLoading(false);
     }
@@ -106,7 +135,7 @@ export function AdminPage() {
     fetchData();
   }, []);
 
-  // Handle Image Upload via Multer / Google Drive endpoint
+  // Handle Image Upload via Multer / Image endpoint
   const handleImageFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -267,6 +296,120 @@ export function AdminPage() {
     }
   };
 
+  // Offering Handlers
+  const handleOpenOfferingModal = (offering = null) => {
+    if (offering) {
+      setEditingOffering(offering);
+      setOfferingForm({
+        number: offering.number || '01',
+        title: offering.title || '',
+        subtitle: offering.subtitle || '',
+        description: offering.description || '',
+        price: offering.price || '',
+        image: offering.image || '',
+        cloudinaryPublicId: offering.cloudinaryPublicId || '',
+        accent: offering.accent || '',
+        link: offering.link || '#contact',
+      });
+    } else {
+      setEditingOffering(null);
+      setOfferingForm({
+        number: `0${offerings.length + 1}`,
+        title: '',
+        subtitle: '',
+        description: '',
+        price: '',
+        image: 'https://res.cloudinary.com/ku59ko3p/image/upload/v1792430625/PastryPaws/hero-cake.jpg',
+        cloudinaryPublicId: '',
+        accent: '',
+        link: '#contact',
+      });
+    }
+    setIsOfferingModalOpen(true);
+  };
+
+  const handleOfferingImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('image', file);
+
+    setUploadingImage(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (data.success && data.imageUrl) {
+        setOfferingForm((prev) => ({
+          ...prev,
+          image: data.imageUrl,
+          cloudinaryPublicId: data.publicId || '',
+        }));
+        showToast('Uploaded and optimized on Cloudinary CDN!');
+      } else {
+        showToast(data.message || 'Image upload failed', 'error');
+      }
+    } catch {
+      showToast('Could not connect to upload server', 'error');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleSaveOffering = async (e) => {
+    e.preventDefault();
+    if (!offeringForm.title.trim()) return;
+
+    try {
+      const url = editingOffering
+        ? `${API_BASE_URL}/api/offerings/${editingOffering._id || editingOffering.id}`
+        : `${API_BASE_URL}/api/offerings`;
+      const method = editingOffering ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(offeringForm),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        showToast(editingOffering ? 'Offering updated successfully!' : 'New offering created!');
+        setIsOfferingModalOpen(false);
+        setEditingOffering(null);
+        fetchData();
+      } else {
+        showToast(data.message || 'Error saving offering', 'error');
+      }
+    } catch {
+      showToast('Error connecting to server', 'error');
+    }
+  };
+
+  const handleDeleteOffering = async (offering) => {
+    if (!window.confirm(`Delete offering "${offering.title}"?`)) return;
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/offerings/${offering._id || offering.id}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast('Offering deleted successfully!');
+        fetchData();
+      } else {
+        showToast(data.message || 'Error deleting offering', 'error');
+      }
+    } catch {
+      setOfferings((prev) => prev.filter((o) => (o._id || o.id) !== (offering._id || offering.id)));
+      showToast('Offering removed from local state', 'success');
+    }
+  };
+
   // Update Order Status
   const handleUpdateOrderStatus = async (orderId, newStatus) => {
     try {
@@ -310,11 +453,10 @@ export function AdminPage() {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className={`fixed top-4 right-4 z-50 flex items-center gap-2.5 px-4 py-3 rounded-2xl shadow-lg border text-xs sm:text-sm font-medium ${
-              toast.type === 'error'
+            className={`fixed top-4 right-4 z-50 flex items-center gap-2.5 px-4 py-3 rounded-2xl shadow-lg border text-xs sm:text-sm font-medium ${toast.type === 'error'
                 ? 'bg-rose-50 text-rose-800 border-rose-200'
                 : 'bg-emerald-50 text-emerald-800 border-emerald-200'
-            }`}
+              }`}
           >
             {toast.type === 'error' ? (
               <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
@@ -371,11 +513,10 @@ export function AdminPage() {
         <div className="flex items-center gap-2 border-b border-[#D29C83]/30 pb-3 overflow-x-auto no-scrollbar">
           <button
             onClick={() => setActiveTab('items')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all ${
-              activeTab === 'items'
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all ${activeTab === 'items'
                 ? 'bg-[#7C3F27] text-[#FFF9F3] shadow-xs'
                 : 'bg-[#FFF9F3] text-[#7C3F27] hover:bg-[#FEEDDD] border border-[#D29C83]/30'
-            }`}
+              }`}
           >
             <ShoppingBag className="w-4 h-4" />
             <span>Menu Items ({items.length})</span>
@@ -383,23 +524,32 @@ export function AdminPage() {
 
           <button
             onClick={() => setActiveTab('categories')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all ${
-              activeTab === 'categories'
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all ${activeTab === 'categories'
                 ? 'bg-[#7C3F27] text-[#FFF9F3] shadow-xs'
                 : 'bg-[#FFF9F3] text-[#7C3F27] hover:bg-[#FEEDDD] border border-[#D29C83]/30'
-            }`}
+              }`}
           >
             <Layers className="w-4 h-4" />
             <span>Categories ({categories.length})</span>
           </button>
 
           <button
-            onClick={() => setActiveTab('orders')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all ${
-              activeTab === 'orders'
+            onClick={() => setActiveTab('offerings')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all ${activeTab === 'offerings'
                 ? 'bg-[#7C3F27] text-[#FFF9F3] shadow-xs'
                 : 'bg-[#FFF9F3] text-[#7C3F27] hover:bg-[#FEEDDD] border border-[#D29C83]/30'
-            }`}
+              }`}
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>Our Offerings ({offerings.length})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('orders')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all ${activeTab === 'orders'
+                ? 'bg-[#7C3F27] text-[#FFF9F3] shadow-xs'
+                : 'bg-[#FFF9F3] text-[#7C3F27] hover:bg-[#FEEDDD] border border-[#D29C83]/30'
+              }`}
           >
             <Sparkles className="w-4 h-4" />
             <span>Orders ({orders.length})</span>
@@ -407,11 +557,10 @@ export function AdminPage() {
 
           <button
             onClick={() => setActiveTab('database')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all ml-auto ${
-              activeTab === 'database'
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all ml-auto ${activeTab === 'database'
                 ? 'bg-[#7C3F27] text-[#FFF9F3] shadow-xs'
                 : 'bg-[#FFF9F3] text-[#7C3F27] hover:bg-[#FEEDDD] border border-[#D29C83]/30'
-            }`}
+              }`}
           >
             <Database className="w-4 h-4" />
             <span className="hidden sm:inline">Atlas & Cloudinary</span>
@@ -643,6 +792,93 @@ export function AdminPage() {
           </div>
         )}
 
+        {/* TAB: OUR OFFERINGS */}
+        {activeTab === 'offerings' && (
+          <div className="pt-6 space-y-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-serif text-lg text-[#411C10]">Our Offerings (Specialties)</h3>
+                <p className="text-xs text-[#7C3F27]">
+                  These are the featured specialty cards showcased in the homepage "OUR OFFERINGS" section.
+                </p>
+              </div>
+              <button
+                onClick={() => handleOpenOfferingModal()}
+                className="inline-flex items-center gap-1.5 bg-[#7C3F27] text-[#FEEDDD] hover:bg-[#5E2B19] py-2 px-3.5 rounded-xl text-xs sm:text-sm font-medium transition-all shadow-xs cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>New Offering</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {offerings.map((off, idx) => (
+                <div
+                  key={off._id || off.id || idx}
+                  className="p-4 rounded-2xl bg-[#FFF9F3] border border-[#D29C83]/30 shadow-xs flex gap-4 items-start hover:shadow-sm transition-shadow"
+                >
+                  <img
+                    src={off.image}
+                    alt={off.title}
+                    className="w-20 h-20 rounded-xl object-cover border border-[#D29C83]/30 bg-[#FEEDDD] shrink-0"
+                    onError={(e) => {
+                      e.currentTarget.src = 'https://res.cloudinary.com/ku59ko3p/image/upload/v1792430625/PastryPaws/hero-cake.jpg';
+                    }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold text-[#7C3F27] bg-[#FEEDDD] px-2 py-0.5 rounded border border-[#D29C83]/30">
+                        {off.number || `0${idx + 1}`}
+                      </span>
+                      <h4 className="font-serif font-medium text-sm text-[#411C10] truncate">
+                        {off.title}
+                      </h4>
+                    </div>
+                    {off.subtitle && (
+                      <p className="text-[11px] text-[#A66D54] font-medium mt-0.5 truncate">
+                        {off.subtitle}
+                      </p>
+                    )}
+                    {off.description && (
+                      <p className="text-[11px] text-[#7C3F27] mt-1 line-clamp-2">
+                        {off.description}
+                      </p>
+                    )}
+                    <div className="flex items-center gap-2 mt-2">
+                      {off.accent && (
+                        <span className="text-[10px] bg-[#FEEDDD] text-[#7C3F27] px-2 py-0.5 rounded-full">
+                          {off.accent}
+                        </span>
+                      )}
+                      {off.price && (
+                        <span className="text-[11px] font-bold text-[#411C10]">
+                          {off.price}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => handleOpenOfferingModal(off)}
+                      className="p-1.5 text-[#7C3F27] hover:bg-[#FEEDDD] rounded-lg transition-colors cursor-pointer"
+                      title="Edit offering"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteOffering(off)}
+                      className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                      title="Delete offering"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* TAB 3: ORDERS */}
         {activeTab === 'orders' && (
           <div className="pt-6 space-y-5">
@@ -701,13 +937,12 @@ export function AdminPage() {
                       <select
                         value={ord.status || 'pending'}
                         onChange={(e) => handleUpdateOrderStatus(ord._id, e.target.value)}
-                        className={`text-xs font-semibold px-3 py-1.5 rounded-xl border focus:outline-none ${
-                          ord.status === 'delivered'
+                        className={`text-xs font-semibold px-3 py-1.5 rounded-xl border focus:outline-none ${ord.status === 'delivered'
                             ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
                             : ord.status === 'baking'
-                            ? 'bg-amber-50 text-amber-800 border-amber-300'
-                            : 'bg-[#FEEDDD] text-[#7C3F27] border-[#D29C83]/40'
-                        }`}
+                              ? 'bg-amber-50 text-amber-800 border-amber-300'
+                              : 'bg-[#FEEDDD] text-[#7C3F27] border-[#D29C83]/40'
+                          }`}
                       >
                         <option value="pending">Pending</option>
                         <option value="confirmed">Confirmed</option>
@@ -723,7 +958,7 @@ export function AdminPage() {
           </div>
         )}
 
-        {/* TAB 4: DATABASE & GOOGLE DRIVE STATUS */}
+        {/* TAB 4: DATABASE & Image STATUS */}
         {activeTab === 'database' && (
           <div className="pt-6 space-y-6 max-w-3xl">
             {/* MongoDB Atlas Card */}
@@ -875,10 +1110,10 @@ export function AdminPage() {
                   />
                 </div>
 
-                {/* Image Upload / Google Drive */}
+                {/* Image Upload / Image */}
                 <div>
                   <label className="block text-xs font-semibold text-[#411C10] mb-1">
-                    Photo (Google Drive / Upload / URL)
+                    Photo (Image / Upload / URL)
                   </label>
                   <div className="flex items-center gap-3">
                     {itemForm.image && (
@@ -1040,6 +1275,175 @@ export function AdminPage() {
                     className="px-5 py-2 rounded-xl bg-[#7C3F27] text-white hover:bg-[#5E2B19] text-xs font-medium shadow-xs"
                   >
                     Create Category
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL: ADD / EDIT OFFERING */}
+      <AnimatePresence>
+        {isOfferingModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 overflow-y-auto">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsOfferingModalOpen(false)}
+              className="fixed inset-0 bg-[#2C1810]/75 backdrop-blur-sm"
+            />
+
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative w-full max-w-lg bg-[#FFF9F3] rounded-3xl border border-[#D29C83]/30 shadow-2xl p-6 z-10 my-8"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-serif text-lg text-[#411C10]">
+                  {editingOffering ? 'Edit Offering' : 'New Offering Card'}
+                </h3>
+                <button
+                  onClick={() => setIsOfferingModalOpen(false)}
+                  className="p-1 rounded-full text-[#A66D54] hover:bg-[#FEEDDD] transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveOffering} className="space-y-4">
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="col-span-1">
+                    <label className="block text-xs font-semibold text-[#411C10] mb-1">
+                      Number
+                    </label>
+                    <input
+                      type="text"
+                      value={offeringForm.number}
+                      onChange={(e) => setOfferingForm({ ...offeringForm, number: e.target.value })}
+                      placeholder="01"
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-[#D29C83]/40 bg-[#FFF9F3] text-[#411C10] focus:outline-none"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-xs font-semibold text-[#411C10] mb-1">
+                      Title *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={offeringForm.title}
+                      onChange={(e) => setOfferingForm({ ...offeringForm, title: e.target.value })}
+                      placeholder="e.g. Celebration Cakes"
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-[#D29C83]/40 bg-[#FFF9F3] text-[#411C10] focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-[#411C10] mb-1">
+                    Subtitle / Flavors
+                  </label>
+                  <input
+                    type="text"
+                    value={offeringForm.subtitle}
+                    onChange={(e) => setOfferingForm({ ...offeringForm, subtitle: e.target.value })}
+                    placeholder="e.g. Chocolate • Biscoff • Red Velvet"
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-[#D29C83]/40 bg-[#FFF9F3] text-[#411C10] focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-[#411C10] mb-1">
+                    Description
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={offeringForm.description}
+                    onChange={(e) => setOfferingForm({ ...offeringForm, description: e.target.value })}
+                    placeholder="Short description of this offering..."
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-[#D29C83]/40 bg-[#FFF9F3] text-[#411C10] focus:outline-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-[#411C10] mb-1">
+                      Starting Price
+                    </label>
+                    <input
+                      type="text"
+                      value={offeringForm.price}
+                      onChange={(e) => setOfferingForm({ ...offeringForm, price: e.target.value })}
+                      placeholder="From ₹399/-"
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-[#D29C83]/40 bg-[#FFF9F3] text-[#411C10] focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-[#411C10] mb-1">
+                      Accent Pill Text
+                    </label>
+                    <input
+                      type="text"
+                      value={offeringForm.accent}
+                      onChange={(e) => setOfferingForm({ ...offeringForm, accent: e.target.value })}
+                      placeholder="e.g. Complimentary Mini Cookies"
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-[#D29C83]/40 bg-[#FFF9F3] text-[#411C10] focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Offering Image */}
+                <div>
+                  <label className="block text-xs font-semibold text-[#411C10] mb-1">
+                    Offering Image (Cloudinary)
+                  </label>
+                  <div className="flex items-center gap-3">
+                    {offeringForm.image && (
+                      <img
+                        src={offeringForm.image}
+                        alt="Preview"
+                        className="w-14 h-14 rounded-xl object-cover border border-[#D29C83]/40"
+                      />
+                    )}
+                    <div className="flex-1 space-y-1.5">
+                      <label className="inline-flex items-center gap-1.5 bg-[#FEEDDD] text-[#7C3F27] hover:bg-[#FEE5D2] px-3 py-2 rounded-xl text-xs font-medium cursor-pointer border border-[#D29C83]/30 transition-colors">
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>{uploadingImage ? 'Uploading to Cloudinary...' : 'Upload Image'}</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleOfferingImageUpload}
+                          disabled={uploadingImage}
+                          className="hidden"
+                        />
+                      </label>
+                      <input
+                        type="text"
+                        value={offeringForm.image}
+                        onChange={(e) => setOfferingForm({ ...offeringForm, image: e.target.value })}
+                        placeholder="Cloudinary image URL"
+                        className="w-full px-3 py-1.5 text-xs rounded-xl border border-[#D29C83]/40 bg-[#FFF9F3] text-[#411C10] focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2 border-t border-[#D29C83]/20">
+                  <button
+                    type="button"
+                    onClick={() => setIsOfferingModalOpen(false)}
+                    className="px-4 py-2 rounded-xl border border-[#D29C83]/40 text-xs font-medium text-[#7C3F27]"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 rounded-xl bg-[#7C3F27] text-white hover:bg-[#5E2B19] text-xs font-medium shadow-xs"
+                  >
+                    {editingOffering ? 'Update Offering' : 'Create Offering'}
                   </button>
                 </div>
               </form>
