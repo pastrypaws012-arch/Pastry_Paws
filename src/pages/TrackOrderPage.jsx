@@ -18,9 +18,12 @@ import {
   Check,
   RefreshCw,
   Sparkles,
+  Download,
+  AlertTriangle,
 } from 'lucide-react';
 import { brandConfig } from '../data/brand';
 import { API_BASE_URL } from '../utils/api';
+import { printOrderInvoice } from '../utils/invoiceGenerator';
 
 const STATUS_CONFIG = {
   pending: {
@@ -90,40 +93,52 @@ export function TrackOrderPage() {
   
   // Customer cancellation state
   const [orderToCancel, setOrderToCancel] = useState(null);
+  const [cancellationReasonInput, setCancellationReasonInput] = useState('');
   const [cancelling, setCancelling] = useState(false);
   const [cancelModalError, setCancelModalError] = useState('');
   const [cancelToast, setCancelToast] = useState('');
 
-  // Handle Customer Cancel Order (Pending only)
+  // Handle Customer Cancellation Request (Pending only, requires reason)
   const handleConfirmCancel = async () => {
     if (!orderToCancel) return;
+    if (!cancellationReasonInput.trim()) {
+      setCancelModalError('Please enter a reason for your cancellation request.');
+      return;
+    }
     setCancelling(true);
     setCancelModalError('');
 
     try {
       const targetId = orderToCancel._id || orderToCancel.orderId;
-      const res = await fetch(`${API_BASE_URL}/api/orders/${targetId}/customer-cancel`, {
+      const res = await fetch(`${API_BASE_URL}/api/orders/${targetId}/request-cancel`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({ reason: cancellationReasonInput.trim() }),
       });
       const data = await res.json();
 
       if (data.success) {
-        // Update local orders list to reflect cancelled status immediately
+        // Update local orders list to reflect pending review state
         setOrders((prev) =>
           prev.map((o) =>
             o.orderId === orderToCancel.orderId || o._id === orderToCancel._id
-              ? { ...o, status: 'cancelled' }
+              ? {
+                  ...o,
+                  cancellationRequested: true,
+                  cancellationStatus: 'pending',
+                  cancellationReason: cancellationReasonInput.trim(),
+                }
               : o
           )
         );
-        setCancelToast(`Order #${orderToCancel.orderId} was successfully cancelled.`);
+        setCancelToast(`Cancellation request for #${orderToCancel.orderId} submitted for bakery review.`);
         setTimeout(() => setCancelToast(''), 5000);
         setOrderToCancel(null);
+        setCancellationReasonInput('');
       } else {
-        setCancelModalError(data.message || 'Unable to cancel this order.');
+        setCancelModalError(data.message || 'Unable to submit cancellation request.');
       }
     } catch {
       setCancelModalError('Failed to connect to the server. Please check your network and try again.');
@@ -538,6 +553,50 @@ export function TrackOrderPage() {
                       </div>
                     </div>
 
+                      {/* Cancellation Request Pending Review Banner */}
+                      {order.cancellationStatus === 'pending' && (
+                        <div className="mt-3 p-3.5 rounded-2xl bg-amber-50 border border-amber-300 text-xs space-y-1.5">
+                          <div className="flex items-center gap-1.5 font-bold text-amber-900">
+                            <Clock className="w-4 h-4 text-amber-700 shrink-0" />
+                            <span>Cancellation Request Under Review</span>
+                          </div>
+                          <p className="text-[#411C10]">
+                            <span className="text-[#A66D54]">Reason provided:</span>{' '}
+                            <strong className="text-amber-950">"{order.cancellationReason}"</strong>
+                          </p>
+                          <p className="text-[11px] text-[#A66D54]">
+                            Our studio is reviewing your cancellation request. If approved, the order will be cancelled. If preparation has already begun, the order will proceed.
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Cancellation Request Denied Banner */}
+                      {order.cancellationStatus === 'denied' && (
+                        <div className="mt-3 p-3.5 rounded-2xl bg-rose-50 border border-rose-300 text-xs space-y-1.5">
+                          <div className="flex items-center gap-1.5 font-bold text-rose-900">
+                            <AlertTriangle className="w-4 h-4 text-rose-700 shrink-0" />
+                            <span>Cancellation Request Declined by Bakery</span>
+                          </div>
+                          <p className="text-[#411C10]">
+                            <span className="text-[#A66D54]">Reason from Studio:</span>{' '}
+                            <strong className="text-rose-900">"{order.cancellationDeniedReason || 'Artisan ingredients already prepped and baking started.'}"</strong>
+                          </p>
+                          <p className="text-[11px] text-[#7C3F27]">
+                            Your order remains active and is proceeding as scheduled.
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Cancelled Order Banner */}
+                      {isCancelled && (
+                        <div className="mt-3 p-3 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-900 space-y-0.5">
+                          <strong>Order Cancelled</strong>
+                          {order.cancellationReason && (
+                            <p className="text-[11px] text-rose-700">Reason: "{order.cancellationReason}"</p>
+                          )}
+                        </div>
+                      )}
+
                     {/* Order Action Footer */}
                     <div className="pt-3 border-t border-[#D29C83]/20 flex flex-wrap items-center justify-between gap-3">
                       <span className="text-[11px] text-[#A66D54]">
@@ -554,19 +613,38 @@ export function TrackOrderPage() {
                       </span>
 
                       <div className="flex items-center gap-2 flex-wrap">
-                        {/* Cancel button: STRICT RULE - ONLY shown if status is 'pending' */}
-                        {statusKey === 'pending' && (
+                        {/* Download Invoice PDF Button */}
+                        <button
+                          type="button"
+                          onClick={() => printOrderInvoice(order)}
+                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#FFF9F3] hover:bg-[#FEEDDD] text-[#7C3F27] border border-[#D29C83]/35 text-xs font-semibold transition-all shadow-2xs hover:shadow cursor-pointer"
+                          title="Download or Print Official Invoice PDF"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          <span>Invoice PDF</span>
+                        </button>
+
+                        {/* Request Cancellation button: ONLY shown if status is 'pending' and not already requested */}
+                        {statusKey === 'pending' && order.cancellationStatus !== 'pending' && (
                           <button
                             type="button"
                             onClick={() => {
                               setCancelModalError('');
+                              setCancellationReasonInput('');
                               setOrderToCancel(order);
                             }}
-                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 hover:border-rose-600 text-xs font-semibold transition-all shadow-2xs hover:shadow cursor-pointer"
+                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 hover:border-rose-600 text-xs font-semibold transition-all shadow-2xs hover:shadow cursor-pointer"
                           >
                             <XCircle className="w-3.5 h-3.5" />
-                            <span>Cancel Order</span>
+                            <span>Request Cancel</span>
                           </button>
+                        )}
+
+                        {/* Cancellation Request Already Pending */}
+                        {order.cancellationStatus === 'pending' && (
+                          <span className="text-[11px] text-amber-800 bg-amber-100 px-2.5 py-1.5 rounded-xl border border-amber-300 font-semibold">
+                            ⏳ Cancel Requested
+                          </span>
                         )}
 
                         {/* Strict Rule: For confirmed or baking, cancel is forbidden for users */}
@@ -580,10 +658,10 @@ export function TrackOrderPage() {
                           href={getWhatsAppInquiryUrl(order)}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#25D366]/15 hover:bg-[#25D366] text-[#128C7E] hover:text-white border border-[#25D366]/40 text-xs font-semibold transition-all shadow-2xs hover:shadow cursor-pointer"
+                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#25D366]/15 hover:bg-[#25D366] text-[#128C7E] hover:text-white border border-[#25D366]/40 text-xs font-semibold transition-all shadow-2xs hover:shadow cursor-pointer"
                         >
                           <MessageCircle className="w-3.5 h-3.5" />
-                          <span>Inquire on WhatsApp</span>
+                          <span>WhatsApp</span>
                         </a>
                       </div>
                     </div>
@@ -610,7 +688,7 @@ export function TrackOrderPage() {
         )}
       </AnimatePresence>
 
-      {/* Cancel Order Confirmation Modal */}
+      {/* Request Cancellation Modal (Mandatory Reason) */}
       <AnimatePresence>
         {orderToCancel && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
@@ -626,13 +704,29 @@ export function TrackOrderPage() {
 
               <div>
                 <h3 className="font-serif text-xl text-[#411C10]">
-                  Cancel Order #{orderToCancel.orderId}?
+                  Request Cancellation #{orderToCancel.orderId}
                 </h3>
                 <p className="text-xs text-[#7C3F27] mt-1 leading-relaxed">
-                  Are you sure you want to cancel your order for{' '}
-                  <strong className="text-[#411C10]">{orderToCancel.itemTitle}</strong> ({orderToCancel.selectedSize})?
-                  This action cannot be undone once confirmed.
+                  You are requesting cancellation for <strong className="text-[#411C10]">{orderToCancel.itemTitle}</strong> ({orderToCancel.selectedSize}).
+                  Your request will be submitted to the bakery for review and confirmation.
                 </p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-[#411C10]">
+                  Reason for Cancellation <span className="text-rose-500">*</span>
+                </label>
+                <textarea
+                  rows={3}
+                  required
+                  value={cancellationReasonInput}
+                  onChange={(e) => {
+                    setCancellationReasonInput(e.target.value);
+                    if (cancelModalError) setCancelModalError('');
+                  }}
+                  placeholder="e.g. Ordered incorrect flavor/size, delivery date change needed, placed by mistake..."
+                  className="w-full p-3 text-xs rounded-xl border border-[#D29C83]/40 bg-[#FFF9F3] text-[#411C10] placeholder:text-[#A66D54]/50 focus:outline-none focus:border-[#7C3F27]"
+                />
               </div>
 
               {cancelModalError && (
@@ -647,6 +741,7 @@ export function TrackOrderPage() {
                   disabled={cancelling}
                   onClick={() => {
                     setOrderToCancel(null);
+                    setCancellationReasonInput('');
                     setCancelModalError('');
                   }}
                   className="px-4 py-2.5 rounded-xl border border-[#D29C83]/40 text-xs font-semibold text-[#7C3F27] hover:bg-[#FEEDDD] transition-colors cursor-pointer"
@@ -662,10 +757,10 @@ export function TrackOrderPage() {
                   {cancelling ? (
                     <>
                       <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                      <span>Cancelling...</span>
+                      <span>Submitting Request...</span>
                     </>
                   ) : (
-                    <span>Yes, Cancel Order</span>
+                    <span>Submit Cancellation Request</span>
                   )}
                 </button>
               </div>

@@ -20,10 +20,14 @@ import {
   X,
   Eye,
   Check,
+  AlertTriangle,
+  Download,
+  FileText,
 } from 'lucide-react';
 import { categories as defaultCategories, creationsData as defaultCreations, specialtiesData as defaultOfferings } from '../data/creations';
 import { brandConfig } from '../data/brand';
 import { API_BASE_URL } from '../utils/api';
+import { printOrderInvoice } from '../utils/invoiceGenerator';
 
 export function AdminPage() {
   const [activeTab, setActiveTab] = useState('items'); // 'items', 'offerings', 'categories', 'orders', 'database'
@@ -93,6 +97,12 @@ export function AdminPage() {
     accent: '',
     link: '#contact',
   });
+
+  // Admin Order Cancellation Review State
+  const [denyingOrder, setDenyingOrder] = useState(null);
+  const [adminDenialReason, setAdminDenialReason] = useState('');
+  const [denialError, setDenialError] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
 
   // Fetch initial data
   const fetchData = async () => {
@@ -459,6 +469,81 @@ export function AdminPage() {
         prev.map((o) => (o._id === orderId ? { ...o, status: newStatus } : o))
       );
       showToast(`Status updated in local view`);
+    }
+  };
+
+  // Admin Approve Customer Cancellation
+  const handleApproveCancellation = async (order) => {
+    if (!window.confirm(`Approve cancellation for Order #${order.orderId}? The order will be permanently marked as Cancelled.`)) {
+      return;
+    }
+    setActionLoading(true);
+    try {
+      const targetId = order._id || order.orderId;
+      const res = await fetch(`${API_BASE_URL}/api/orders/${targetId}/approve-cancel`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(`Order #${order.orderId} cancellation approved.`);
+        setOrders((prev) =>
+          prev.map((o) =>
+            o.orderId === order.orderId || o._id === order._id
+              ? { ...o, status: 'cancelled', cancellationStatus: 'approved' }
+              : o
+          )
+        );
+      } else {
+        showToast(data.message || 'Error approving cancellation', 'error');
+      }
+    } catch {
+      showToast('Network error while approving cancellation', 'error');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Admin Deny Customer Cancellation
+  const handleConfirmDenyCancellation = async (e) => {
+    e.preventDefault();
+    if (!denyingOrder) return;
+    if (!adminDenialReason.trim()) {
+      setDenialError('Please provide a reason for declining the cancellation request.');
+      return;
+    }
+    setActionLoading(true);
+    setDenialError('');
+    try {
+      const targetId = denyingOrder._id || denyingOrder.orderId;
+      const res = await fetch(`${API_BASE_URL}/api/orders/${targetId}/deny-cancel`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: adminDenialReason.trim() }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(`Cancellation declined for Order #${denyingOrder.orderId}. Customer will see this reason in Tracker.`);
+        setOrders((prev) =>
+          prev.map((o) =>
+            o.orderId === denyingOrder.orderId || o._id === denyingOrder._id
+              ? {
+                  ...o,
+                  cancellationStatus: 'denied',
+                  cancellationDeniedReason: adminDenialReason.trim(),
+                }
+              : o
+          )
+        );
+        setDenyingOrder(null);
+        setAdminDenialReason('');
+      } else {
+        setDenialError(data.message || 'Failed to decline cancellation.');
+      }
+    } catch {
+      setDenialError('Network error while declining cancellation.');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -1007,27 +1092,97 @@ export function AdminPage() {
                           </p>
                         )}
                       </div>
+
+                      {/* Customer Cancellation Request Banner */}
+                      {ord.cancellationStatus === 'pending' && (
+                        <div className="mt-3 p-3 rounded-xl bg-amber-50 border border-amber-300 text-xs space-y-2">
+                          <div className="flex items-center gap-1.5 text-amber-900 font-bold">
+                            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                            <span>Cancellation Requested by Customer</span>
+                          </div>
+                          <div className="bg-white/90 p-2 rounded-lg border border-amber-200">
+                            <span className="text-[10px] text-[#A66D54] uppercase tracking-wider block font-bold">
+                              Customer Reason:
+                            </span>
+                            <p className="text-xs text-[#411C10] font-medium mt-0.5">
+                              "{ord.cancellationReason || 'No reason provided'}"
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => handleApproveCancellation(ord)}
+                              className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold py-1.5 px-3 rounded-lg shadow-2xs transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                              <span>Approve Cancel</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDenyingOrder(ord);
+                                setAdminDenialReason('');
+                                setDenialError('');
+                              }}
+                              className="flex-1 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold py-1.5 px-3 rounded-lg shadow-2xs transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                              <span>Deny Cancel</span>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Denied Cancellation Notice */}
+                      {ord.cancellationStatus === 'denied' && (
+                        <div className="mt-2.5 p-2 rounded-lg bg-gray-50 border border-gray-200 text-[11px] text-[#7C3F27]">
+                          <span className="font-semibold text-rose-700">Cancellation Declined by Studio:</span>{' '}
+                          <span>"{ord.cancellationDeniedReason}"</span>
+                        </div>
+                      )}
+
+                      {/* Cancelled Order Tag */}
+                      {ord.status === 'cancelled' && (
+                        <div className="mt-2.5 p-2 rounded-lg bg-rose-50 border border-rose-200 text-[11px] text-rose-800">
+                          <span className="font-semibold">Order Cancelled</span>
+                          {ord.cancellationReason && <span> • Reason: "{ord.cancellationReason}"</span>}
+                        </div>
+                      )}
                     </div>
 
                     <div className="mt-4 pt-3 border-t border-[#D29C83]/20 flex items-center justify-between gap-2">
-                      <span className="text-[11px] text-[#A66D54] font-medium">Status:</span>
-                      <select
-                        value={ord.status || 'pending'}
-                        onChange={(e) => handleUpdateOrderStatus(ord._id, e.target.value)}
-                        className={`text-xs font-semibold px-3 py-1.5 rounded-xl border focus:outline-none cursor-pointer ${
-                          ord.status === 'delivered'
-                            ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                            : ord.status === 'baking'
-                            ? 'bg-amber-50 text-amber-800 border-amber-300'
-                            : 'bg-[#FEEDDD] text-[#7C3F27] border-[#D29C83]/40'
-                        }`}
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] text-[#A66D54] font-medium">Status:</span>
+                        <select
+                          value={ord.status || 'pending'}
+                          onChange={(e) => handleUpdateOrderStatus(ord._id, e.target.value)}
+                          className={`text-xs font-semibold px-3 py-1.5 rounded-xl border focus:outline-none cursor-pointer ${
+                            ord.status === 'delivered'
+                              ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                              : ord.status === 'baking'
+                              ? 'bg-amber-50 text-amber-800 border-amber-300'
+                              : ord.status === 'cancelled'
+                              ? 'bg-rose-50 text-rose-800 border-rose-300'
+                              : 'bg-[#FEEDDD] text-[#7C3F27] border-[#D29C83]/40'
+                          }`}
+                        >
+                          <option value="pending">Pending</option>
+                          <option value="confirmed">Confirmed</option>
+                          <option value="baking">Baking in Oven</option>
+                          <option value="delivered">Delivered</option>
+                          <option value="cancelled">Cancelled</option>
+                        </select>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => printOrderInvoice(ord)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-[#D29C83]/30 text-xs font-medium text-[#7C3F27] hover:bg-[#FEEDDD] transition-colors cursor-pointer"
+                        title="Download or Print Invoice PDF"
                       >
-                        <option value="pending">Pending</option>
-                        <option value="confirmed">Confirmed</option>
-                        <option value="baking">Baking in Oven</option>
-                        <option value="delivered">Delivered</option>
-                        <option value="cancelled">Cancelled</option>
-                      </select>
+                        <Download className="w-3.5 h-3.5" />
+                        <span>Invoice</span>
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -1608,6 +1763,80 @@ export function AdminPage() {
                     className="px-5 py-2 rounded-xl bg-[#7C3F27] text-white hover:bg-[#5E2B19] text-xs font-medium shadow-xs"
                   >
                     {editingOffering ? 'Update Offering' : 'Create Offering'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Admin Deny Cancellation Modal */}
+      <AnimatePresence>
+        {denyingOrder && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-[#FFF9F3] border border-[#D29C83]/40 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+
+              <div>
+                <h3 className="font-serif text-xl text-[#411C10]">
+                  Decline Cancellation #{denyingOrder.orderId}
+                </h3>
+                <p className="text-xs text-[#7C3F27] mt-1 leading-relaxed">
+                  Customer requested cancellation stating: <strong className="text-[#411C10]">"{denyingOrder.cancellationReason || 'No reason provided'}"</strong>.
+                </p>
+                <p className="text-[11px] text-[#A66D54] mt-1">
+                  Please provide the official reason for declining. This reason will be displayed directly to the customer on their order tracker page.
+                </p>
+              </div>
+
+              <form onSubmit={handleConfirmDenyCancellation} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-[#411C10] mb-1">
+                    Reason for Declining Cancellation <span className="text-rose-500">*</span>
+                  </label>
+                  <textarea
+                    rows={3}
+                    required
+                    value={adminDenialReason}
+                    onChange={(e) => {
+                      setAdminDenialReason(e.target.value);
+                      if (denialError) setDenialError('');
+                    }}
+                    placeholder="e.g. Fresh ingredients have already been prepped and baking has commenced in the oven."
+                    className="w-full p-3 text-xs rounded-xl border border-[#D29C83]/40 bg-[#FFF9F3] text-[#411C10] placeholder:text-[#A66D54]/50 focus:outline-none focus:border-[#7C3F27]"
+                  />
+                  {denialError && (
+                    <p className="text-xs text-rose-600 mt-1 font-medium">{denialError}</p>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    disabled={actionLoading}
+                    onClick={() => {
+                      setDenyingOrder(null);
+                      setAdminDenialReason('');
+                      setDenialError('');
+                    }}
+                    className="px-4 py-2.5 rounded-xl border border-[#D29C83]/40 text-xs font-semibold text-[#7C3F27] hover:bg-[#FEEDDD] transition-colors cursor-pointer"
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={actionLoading}
+                    className="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    {actionLoading ? 'Submitting...' : 'Confirm & Decline Cancellation'}
                   </button>
                 </div>
               </form>

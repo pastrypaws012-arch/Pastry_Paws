@@ -15,9 +15,12 @@ import {
   ShieldCheck,
   CreditCard,
   Truck,
+  Download,
+  FileText,
 } from 'lucide-react';
 import { brandConfig } from '../data/brand';
 import { API_BASE_URL } from '../utils/api';
+import { printOrderInvoice } from '../utils/invoiceGenerator';
 
 export function OrderModal({ isOpen, onClose, item, selectedTier }) {
   const [formData, setFormData] = useState({
@@ -208,18 +211,17 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
                 {/* Action Buttons */}
                 <div className="flex flex-col gap-2 pt-2">
                   <div className="flex flex-col sm:flex-row gap-2.5">
-                    <a
-                      href={whatsappReceiptUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 inline-flex items-center justify-center gap-2 bg-[#25D366] text-white hover:bg-[#1EBE5D] py-2.5 px-4 rounded-xl text-xs sm:text-sm font-medium transition-all shadow-xs hover:shadow"
+                    <button
+                      type="button"
+                      onClick={() => printOrderInvoice(placedOrder)}
+                      className="flex-1 inline-flex items-center justify-center gap-2 bg-[#7C3F27] text-[#FEEDDD] hover:bg-[#5E2B19] py-2.5 px-4 rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-md hover:shadow-lg active:scale-[0.98] cursor-pointer"
                     >
-                      <MessageCircle className="w-4 h-4" />
-                      <span>Send Order Copy on WhatsApp</span>
-                    </a>
+                      <Download className="w-4 h-4 text-[#F9C8B5]" />
+                      <span>Download Invoice (PDF)</span>
+                    </button>
                     <button
                       onClick={handleResetAndClose}
-                      className="inline-flex items-center justify-center py-2.5 px-5 rounded-xl border border-[#D29C83]/40 text-[#411C10] hover:bg-[#FEEDDD] text-xs sm:text-sm font-medium transition-colors"
+                      className="inline-flex items-center justify-center py-2.5 px-5 rounded-xl border border-[#D29C83]/40 text-[#411C10] hover:bg-[#FEEDDD] text-xs sm:text-sm font-medium transition-colors cursor-pointer"
                     >
                       Close
                     </button>

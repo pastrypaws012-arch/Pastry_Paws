@@ -975,44 +975,5 @@ export const creationsData = [
 ];
 
 export const specialtiesData = [
-  {
-    "id": "cakes-specialty",
-    "number": "01",
-    "title": "Celebration Cakes",
-    "subtitle": "Chocolate • Biscoff • Red Velvet • Vanilla",
-    "description": "Handcrafted cakes from 1/2 kg to 1 kg. Birthday cakes come with complimentary mini cookies!",
-    "price": "From ₹399/-",
-    "image": "https://res.cloudinary.com/ku59ko3p/image/upload/v1792430629/PastryPaws/r7bv4x5tbakgskxjyxxz.jpg",
-    "accent": "Free Mini Cookies with Birthday Cakes"
-  },
-  {
-    "id": "brownies-specialty",
-    "number": "02",
-    "title": "Fudge & Nutella Brownies",
-    "subtitle": "Fudge • Nutella • Biscoff • Nuts",
-    "description": "Available in 1/4 kg, 1/2 kg, and 1 kg. Extra chocolate add-on available (+₹30).",
-    "price": "From ₹199/-",
-    "image": "https://res.cloudinary.com/ku59ko3p/image/upload/v1792430622/PastryPaws/brownies.jpg",
-    "accent": "Simple • Homemade Goodness"
-  },
-  {
-    "id": "lava-cupcakes-specialty",
-    "number": "03",
-    "title": "Choco Lava & Cupcakes",
-    "subtitle": "Warm • Gooey • Irresistible",
-    "description": "Signature Choco Lava cakes at ₹99/- each, plus freshly piped Vanilla, Chocolate & Red Velvet cupcakes.",
-    "price": "Choco Lava: ₹99/- | Cupcakes from ₹10/-",
-    "image": "https://res.cloudinary.com/ku59ko3p/image/upload/v1792430634/PastryPaws/clqa6e6gl1hylxv03lhz.jpg",
-    "accent": "Warm Gooey Molten Centers"
-  },
-  {
-    "id": "tea-cakes-cookies-specialty",
-    "number": "04",
-    "title": "Tea Cakes & Fresh Cookies",
-    "subtitle": "Small bites, Big happiness",
-    "description": "Soft homemade tea cake loaves (from ₹149/-) and 5-pack cookie sets in Chocolate, Biscoff & Red Velvet.",
-    "price": "Cookies from ₹60/- | Tea Cakes from ₹149/-",
-    "image": "https://res.cloudinary.com/ku59ko3p/image/upload/v1792430640/PastryPaws/rnfooccjon09fg86z1va.jpg",
-    "accent": "Tea Time Essentials"
-  }
+
 ];
