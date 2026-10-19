@@ -122,16 +122,25 @@ export function Footer() {
             <span>for sweet celebrations.</span>
           </p>
 
-          <button
-            type="button"
-            onClick={scrollToTop}
-            className="group flex items-center gap-2 hover:text-[#FFF9F3] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F7B6A7] rounded-sm py-1 px-2"
-          >
-            <span>Back to top</span>
-            <div className="p-1.5 rounded-full bg-[#7C3F27] text-[#FEEDDD] group-hover:bg-[#F7B6A7] group-hover:text-[#411C10] transition-colors">
-              <ArrowUp className="w-3.5 h-3.5" />
-            </div>
-          </button>
+          <div className="flex items-center gap-4">
+            <Link
+              to="/admin"
+              className="text-[11px] text-[#D29C83] hover:text-[#FEEDDD] underline underline-offset-4 transition-colors"
+            >
+              Admin Portal
+            </Link>
+
+            <button
+              type="button"
+              onClick={scrollToTop}
+              className="group flex items-center gap-2 hover:text-[#FFF9F3] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F7B6A7] rounded-sm py-1 px-2 cursor-pointer"
+            >
+              <span>Back to top</span>
+              <div className="p-1.5 rounded-full bg-[#7C3F27] text-[#FEEDDD] group-hover:bg-[#F7B6A7] group-hover:text-[#411C10] transition-colors">
+                <ArrowUp className="w-3.5 h-3.5" />
+              </div>
+            </button>
+          </div>
         </div>
       </div>
     </footer>

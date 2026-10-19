@@ -6,16 +6,16 @@ export const brandConfig = {
   slogan: "Sweet treats for every mood",
   specialOffer: "Birthday cakes include complimentary mini cookies",
   year: new Date().getFullYear(),
-  
+
   // Contact & Social
   contact: {
-    whatsappNumber: "919876543210", // Digits only for wa.me link
-    whatsappDisplay: "+91 98765 43210",
+    whatsappNumber: "919790983844", // Digits only for wa.me link
+    whatsappDisplay: "+91 9790983844",
     whatsappDefaultMessage: "Hello Pastry Paws! I'd love to order sweet treats.",
     instagramHandle: "@pastry_paws_06",
     instagramUrl: "https://www.instagram.com/pastry_paws_06/",
     email: "hello@pastrypaws.com",
-    phone: "+91 98765 43210",
+    phone: "+91 9790983844",
     serviceArea: "Freshly baked & hand-delivered locally. Custom orders require advance notice.",
     hours: "Mon – Sat: 9:00 AM – 7:00 PM (Freshly baked to order)",
     pickupLocation: "Home Bakery Studio • Pastry Paws"

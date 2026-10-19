@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -16,18 +16,56 @@ import { creationsData, categories } from '../data/creations';
 import { brandConfig } from '../data/brand';
 import { MenuCard } from '../components/MenuCard';
 import { ImageLightbox } from '../components/ImageLightbox';
+import { OrderModal } from '../components/OrderModal';
 import { AnimatedScriptWord } from '../components/AnimatedUnderline';
+import { API_BASE_URL } from '../utils/api';
 
 export function MenuPage() {
+  const [menuItems, setMenuItems] = useState(creationsData);
+  const [categoryList, setCategoryList] = useState(categories);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [priceRange, setPriceRange] = useState('all'); // 'all', 'under250', 'under500', 'above500'
   const [sortBy, setSortBy] = useState('featured'); // 'featured', 'priceAsc', 'priceDesc', 'name'
   const [activeLightboxIndex, setActiveLightboxIndex] = useState(null);
+  const [orderModal, setOrderModal] = useState({ isOpen: false, item: null, tier: null });
+
+  // Fetch dynamic items & categories from backend with graceful offline fallback
+  useEffect(() => {
+    let isMounted = true;
+    const fetchDynamicData = async () => {
+      try {
+        const [itemsRes, catRes] = await Promise.all([
+          fetch(`${API_BASE_URL}/api/items`),
+          fetch(`${API_BASE_URL}/api/categories`),
+        ]);
+
+        if (itemsRes.ok) {
+          const itemsJson = await itemsRes.json();
+          if (itemsJson.success && itemsJson.data && itemsJson.data.length > 0 && isMounted) {
+            setMenuItems(itemsJson.data);
+          }
+        }
+
+        if (catRes.ok) {
+          const catJson = await catRes.json();
+          if (catJson.success && catJson.data && catJson.data.length > 0 && isMounted) {
+            const dynamicCats = ['All', ...catJson.data.map((c) => c.name)];
+            setCategoryList(dynamicCats);
+          }
+        }
+      } catch {
+        // Keep static fallback
+      }
+    };
+
+    fetchDynamicData();
+    return () => { isMounted = false; };
+  }, []);
 
   // Filter and sort items dynamically
   const filteredItems = useMemo(() => {
-    return creationsData
+    return menuItems
       .filter((item) => {
         // Category filter
         const matchCategory =
@@ -64,7 +102,7 @@ export function MenuPage() {
         // Featured (default)
         return (b.featured ? 1 : 0) - (a.featured ? 1 : 0);
       });
-  }, [selectedCategory, searchQuery, priceRange, sortBy]);
+  }, [menuItems, selectedCategory, searchQuery, priceRange, sortBy]);
 
   // Lightbox navigation helpers
   const handleOpenLightbox = (item) => {
@@ -194,7 +232,7 @@ export function MenuPage() {
           {/* Middle Row: Category Tabs */}
           <div>
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
-              {categories.map((cat) => {
+              {categoryList.map((cat) => {
                 const isActive = selectedCategory === cat;
                 return (
                   <button
@@ -266,10 +304,13 @@ export function MenuPage() {
             <AnimatePresence mode="popLayout">
               {filteredItems.map((item, index) => (
                 <MenuCard
-                  key={item.id}
+                  key={item.id || item._id}
                   item={item}
                   priority={index < 4}
                   onOpenLightbox={() => handleOpenLightbox(item)}
+                  onOrderNow={(selectedItem, selectedTier) =>
+                    setOrderModal({ isOpen: true, item: selectedItem, tier: selectedTier })
+                  }
                 />
               ))}
             </AnimatePresence>
@@ -333,6 +374,14 @@ export function MenuPage() {
         onClose={handleCloseLightbox}
         onPrev={filteredItems.length > 1 ? handlePrevLightbox : undefined}
         onNext={filteredItems.length > 1 ? handleNextLightbox : undefined}
+      />
+
+      {/* Order Now Checkout Modal */}
+      <OrderModal
+        isOpen={orderModal.isOpen}
+        onClose={() => setOrderModal({ isOpen: false, item: null, tier: null })}
+        item={orderModal.item}
+        selectedTier={orderModal.tier}
       />
     </div>
   );

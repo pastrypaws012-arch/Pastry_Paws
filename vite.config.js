@@ -11,5 +11,11 @@ export default defineConfig({
   server: {
     host: true, // Exposes the server on local network (0.0.0.0) automatically
     port: 5174,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+      },
+    },
   },
 })

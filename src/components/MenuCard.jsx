@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { Sparkles, MessageCircle, Expand, Check } from 'lucide-react';
+import { Sparkles, MessageCircle, Expand, Check, ShoppingBag } from 'lucide-react';
+import { WhatsAppIcon } from './Icons';
 import { brandConfig } from '../data/brand';
 
 /**
@@ -9,10 +10,11 @@ import { brandConfig } from '../data/brand';
  * Displays:
  * 1. Image with zoom & lightbox trigger
  * 2. Title, category, starting price
- * 3. Exact price-by-weight breakdown table (1/4kg, 1/2kg, 1kg, etc.)
- * 4. Direct WhatsApp prefilled order action
+ * 3. Exact price-by-weight breakdown table (250gm, 500gm, 1kg, etc.)
+ * 4. Primary "Order Now" button
+ * 5. Compact circular WhatsApp button at the edge for product inquiries
  */
-export function MenuCard({ item, onOpenLightbox, priority = false }) {
+export function MenuCard({ item, onOpenLightbox, onOrderNow, priority = false }) {
   const [selectedSize, setSelectedSize] = useState(
     item.pricingDetails && item.pricingDetails.length > 0
       ? item.pricingDetails[0].size
@@ -21,8 +23,8 @@ export function MenuCard({ item, onOpenLightbox, priority = false }) {
 
   const selectedTier = item.pricingDetails?.find((p) => p.size === selectedSize) || item.pricingDetails?.[0];
 
-  const whatsappOrderUrl = `https://wa.me/${brandConfig.contact.whatsappNumber}?text=${encodeURIComponent(
-    `Hello Pastry Paws! I would love to order "${item.title}" (${selectedTier ? `${selectedTier.size} @ ${selectedTier.price}` : item.category}). Please share availability and details!`
+  const whatsappEnquiryUrl = `https://wa.me/${brandConfig.contact.whatsappNumber}?text=${encodeURIComponent(
+    `Hello Pastry Paws! I have an enquiry regarding "${item.title}" (${selectedTier ? `${selectedTier.size} @ ${selectedTier.price}` : item.category}). Could you please share more details?`
   )}`;
 
   return (
@@ -139,18 +141,28 @@ export function MenuCard({ item, onOpenLightbox, priority = false }) {
         </div>
       </div>
 
-      {/* Card Action Footer */}
-      <div className="px-4 pb-4 sm:px-5 sm:pb-5 pt-0">
+      {/* Card Action Footer: Order Now (Primary) + WhatsApp Enquiry (Edge Circular) */}
+      <div className="px-4 pb-4 sm:px-5 sm:pb-5 pt-0 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => onOrderNow?.(item, selectedTier)}
+          className="flex-1 inline-flex items-center justify-center gap-2 bg-[#7C3F27] text-[#FEEDDD] hover:bg-[#5E2B19] py-2.5 px-3 rounded-xl text-xs sm:text-sm font-medium tracking-wide transition-all shadow-2xs hover:shadow active:scale-[0.98] cursor-pointer"
+        >
+          <ShoppingBag className="w-4 h-4 text-[#F9C8B5] shrink-0" />
+          <span className="truncate">
+            Order Now {selectedTier ? `(${selectedTier.size})` : ''}
+          </span>
+        </button>
+
         <a
-          href={whatsappOrderUrl}
+          href={whatsappEnquiryUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="w-full inline-flex items-center justify-center gap-2 bg-[#7C3F27] text-[#FEEDDD] hover:bg-[#5E2B19] py-2.5 px-4 rounded-xl text-xs sm:text-sm font-medium tracking-wide transition-all shadow-2xs hover:shadow active:scale-[0.98]"
+          title={`Enquire about "${item.title}" on WhatsApp`}
+          className="shrink-0 w-10 h-10 rounded-full bg-[#25D366]/15 hover:bg-[#25D366] text-[#128C7E] hover:text-white border border-[#25D366]/35 flex items-center justify-center transition-all duration-200 shadow-2xs hover:shadow hover:scale-105 active:scale-95 cursor-pointer"
+          aria-label={`Enquire about ${item.title} on WhatsApp`}
         >
-          <MessageCircle className="w-4 h-4 text-[#F9C8B5]" />
-          <span>
-            Order {selectedTier ? selectedTier.size : ''} on WhatsApp
-          </span>
+          <WhatsAppIcon className="w-5 h-5" />
         </a>
       </div>
     </motion.div>
