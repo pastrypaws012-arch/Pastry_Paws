@@ -146,12 +146,10 @@ export function MenuCard({ item, onOpenLightbox, onOrderNow, priority = false })
         <button
           type="button"
           onClick={() => onOrderNow?.(item, selectedTier)}
-          className="flex-1 inline-flex items-center justify-center gap-2 bg-[#7C3F27] text-[#FEEDDD] hover:bg-[#5E2B19] py-2.5 px-3 rounded-xl text-xs sm:text-sm font-medium tracking-wide transition-all shadow-2xs hover:shadow active:scale-[0.98] cursor-pointer"
+          className="flex-1 inline-flex items-center justify-center gap-2 bg-[#7C3F27] text-[#FEEDDD] hover:bg-[#5E2B19] py-2.5 px-4 rounded-xl text-xs sm:text-sm font-semibold tracking-wide transition-all shadow-2xs hover:shadow active:scale-[0.98] cursor-pointer"
         >
           <ShoppingBag className="w-4 h-4 text-[#F9C8B5] shrink-0" />
-          <span className="truncate">
-            Order Now {selectedTier ? `(${selectedTier.size})` : ''}
-          </span>
+          <span>Order Now</span>
         </button>
 
         <a
