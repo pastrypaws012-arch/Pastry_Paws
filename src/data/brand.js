@@ -23,11 +23,12 @@ export const brandConfig = {
 
   // Navigation Links
   navLinks: [
-    { label: "Menu", href: "#creations" },
-    { label: "Our Story", href: "#story" },
-    { label: "Specialties", href: "#specialties" },
-    { label: "Reviews", href: "#testimonials" },
-    { label: "Moments", href: "#moments" },
+    { label: "Home", href: "/" },
+    { label: "Menu", href: "/menu" },
+    { label: "Our Story", href: "/#story" },
+    { label: "Specialties", href: "/#specialties" },
+    { label: "Reviews", href: "/#testimonials" },
+    { label: "Moments", href: "/#moments" },
   ],
 
   // Story & Values

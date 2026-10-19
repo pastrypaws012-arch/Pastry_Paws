@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { Menu, MessageCircle } from 'lucide-react';
 import { brandConfig } from '../data/brand';
 import { MobileMenu } from './MobileMenu';
@@ -7,6 +8,7 @@ import { InstagramIcon } from './Icons';
 export function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const location = useLocation();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -45,8 +47,8 @@ export function Navbar() {
         >
           <div className="max-w-7xl mx-auto px-5 sm:px-8 flex items-center justify-between">
             {/* Brand Wordmark with Pastry Paw icon */}
-            <a
-              href="#"
+            <Link
+              to="/"
               className="group flex items-center gap-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7C3F27] rounded-sm shrink-0"
               aria-label={`${brandConfig.name} - Home`}
             >
@@ -73,20 +75,35 @@ export function Navbar() {
                   Artisan Bakery • Baked with Love
                 </span>
               </div>
-            </a>
+            </Link>
 
             {/* Desktop Navigation */}
             <nav className="hidden lg:flex items-center gap-6 xl:gap-8 mx-4" aria-label="Main Navigation">
-              {brandConfig.navLinks.map((link) => (
-                <a
-                  key={link.href}
-                  href={link.href}
-                  className="relative text-sm tracking-wide text-[#411C10] hover:text-[#7C3F27] transition-colors font-medium py-1 whitespace-nowrap group"
-                >
-                  <span>{link.label}</span>
-                  <span className="absolute bottom-0 left-0 w-0 h-[1.5px] bg-[#7C3F27] transition-all duration-300 group-hover:w-full" />
-                </a>
-              ))}
+              {brandConfig.navLinks.map((link) => {
+                const isExactActive =
+                  link.href === '/'
+                    ? location.pathname === '/'
+                    : location.pathname.startsWith(link.href) && !link.href.includes('#');
+
+                return (
+                  <Link
+                    key={link.href}
+                    to={link.href}
+                    className={`relative text-sm tracking-wide transition-colors font-medium py-1 whitespace-nowrap group ${
+                      isExactActive
+                        ? 'text-[#7C3F27] font-semibold'
+                        : 'text-[#411C10] hover:text-[#7C3F27]'
+                    }`}
+                  >
+                    <span>{link.label}</span>
+                    <span
+                      className={`absolute bottom-0 left-0 h-[1.5px] bg-[#7C3F27] transition-all duration-300 ${
+                        isExactActive ? 'w-full' : 'w-0 group-hover:w-full'
+                      }`}
+                    />
+                  </Link>
+                );
+              })}
             </nav>
 
             {/* CTA & Mobile Toggle */}

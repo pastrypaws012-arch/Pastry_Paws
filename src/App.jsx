@@ -1,34 +1,32 @@
 import React from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
-import { Hero } from './sections/Hero';
-import { Creations } from './sections/Creations';
-import { OurStory } from './sections/OurStory';
-import { Specialties } from './sections/Specialties';
-import { Testimonials } from './sections/Testimonials';
-import { InstagramGallery } from './sections/InstagramGallery';
-import { Contact } from './sections/Contact';
 import { Footer } from './components/Footer';
+import { ScrollToTop } from './components/ScrollToTop';
+import { HomePage } from './pages/HomePage';
+import { MenuPage } from './pages/MenuPage';
 
 function App() {
   return (
-    <div className="min-h-screen bg-[#FEEDDD] text-[#411C10] selection:bg-[#F7B6A7] selection:text-[#411C10] font-sans antialiased overflow-x-hidden flex flex-col">
-      {/* Primary Sticky Header (Includes top announcement banner & navigation) */}
-      <Navbar />
+    <BrowserRouter>
+      <ScrollToTop />
+      <div className="min-h-screen bg-[#FEEDDD] text-[#411C10] selection:bg-[#F7B6A7] selection:text-[#411C10] font-sans antialiased overflow-x-hidden flex flex-col">
+        {/* Primary Sticky Header */}
+        <Navbar />
 
-      {/* Main Content Landmarks */}
-      <main className="flex-grow">
-        <Hero />
-        <Creations />
-        <OurStory />
-        <Specialties />
-        <Testimonials />
-        <InstagramGallery />
-        <Contact />
-      </main>
+        {/* Dynamic Route Pages */}
+        <main className="flex-grow">
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/menu" element={<MenuPage />} />
+            <Route path="*" element={<HomePage />} />
+          </Routes>
+        </main>
 
-      {/* Luxury Footer */}
-      <Footer />
-    </div>
+        {/* Luxury Footer */}
+        <Footer />
+      </div>
+    </BrowserRouter>
   );
 }
 

@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, MessageCircle, Mail, Phone, ArrowUpRight } from 'lucide-react';
 import { InstagramIcon } from './Icons';
@@ -61,8 +62,8 @@ export function MobileMenu({ isOpen, onClose }) {
             {/* Header */}
             <div>
               <div className="flex items-center justify-between pb-6 border-b border-[#D29C83]/20">
-                <a
-                  href="#"
+                <Link
+                  to="/"
                   onClick={onClose}
                   className="group flex flex-col"
                 >
@@ -72,7 +73,7 @@ export function MobileMenu({ isOpen, onClose }) {
                   <span className="text-[11px] uppercase tracking-widest text-[#A66D54] font-medium mt-0.5">
                     Artisan Home Bakery
                   </span>
-                </a>
+                </Link>
                 <button
                   type="button"
                   onClick={onClose}
@@ -86,20 +87,17 @@ export function MobileMenu({ isOpen, onClose }) {
               {/* Navigation Links */}
               <nav className="mt-8 flex flex-col gap-4">
                 {brandConfig.navLinks.map((link, idx) => (
-                  <motion.a
+                  <Link
                     key={link.href}
-                    href={link.href}
+                    to={link.href}
                     onClick={onClose}
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.05 * idx, duration: 0.3 }}
                     className="font-serif text-2xl text-[#411C10] hover:text-[#7C3F27] py-2 transition-colors flex items-center justify-between group"
                   >
                     <span>{link.label}</span>
                     <span className="text-xs text-[#D29C83] tracking-widest font-sans opacity-0 group-hover:opacity-100 transition-opacity">
                       0{idx + 1}
                     </span>
-                  </motion.a>
+                  </Link>
                 ))}
               </nav>
             </div>

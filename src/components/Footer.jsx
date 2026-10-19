@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { ArrowUp, Mail, Phone, MessageCircle, Heart } from 'lucide-react';
 import { InstagramIcon } from './Icons';
 import { brandConfig } from '../data/brand';
@@ -52,12 +53,12 @@ export function Footer() {
             <ul className="space-y-2 text-sm text-[#FDEADA]/85">
               {brandConfig.navLinks.map((link) => (
                 <li key={link.href}>
-                  <a
-                    href={link.href}
+                  <Link
+                    to={link.href}
                     className="hover:text-[#FFF9F3] hover:underline underline-offset-4 transition-colors"
                   >
                     {link.label}
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>

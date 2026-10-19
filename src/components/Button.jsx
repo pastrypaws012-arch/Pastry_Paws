@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { ArrowRight } from 'lucide-react';
 
@@ -39,6 +40,19 @@ export function Button({
   const combinedClasses = `${baseStyles} ${variants[variant]} ${className}`;
 
   if (href) {
+    if (href.startsWith('/') && !href.startsWith('/#') && !external) {
+      return (
+        <Link
+          to={href}
+          className={`group ${combinedClasses}`}
+          aria-label={ariaLabel}
+          onClick={onClick}
+        >
+          {content}
+        </Link>
+      );
+    }
+
     return (
       <a
         href={href}

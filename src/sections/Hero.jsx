@@ -70,7 +70,7 @@ export function Hero() {
               transition={{ duration: 0.6, delay: 0.55 }}
               className="mt-8 sm:mt-10 flex flex-wrap items-center gap-4"
             >
-              <Button href="#creations" variant="primary" icon>
+              <Button href="/menu" variant="primary" icon>
                 Explore Menu
               </Button>
               <Button href="#story" variant="secondary">
