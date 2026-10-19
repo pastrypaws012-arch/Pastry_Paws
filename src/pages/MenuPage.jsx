@@ -264,10 +264,11 @@ export function MenuPage() {
         {filteredItems.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 sm:gap-6">
             <AnimatePresence mode="popLayout">
-              {filteredItems.map((item) => (
+              {filteredItems.map((item, index) => (
                 <MenuCard
                   key={item.id}
                   item={item}
+                  priority={index < 4}
                   onOpenLightbox={() => handleOpenLightbox(item)}
                 />
               ))}

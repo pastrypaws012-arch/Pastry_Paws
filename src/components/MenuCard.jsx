@@ -12,7 +12,7 @@ import { brandConfig } from '../data/brand';
  * 3. Exact price-by-weight breakdown table (1/4kg, 1/2kg, 1kg, etc.)
  * 4. Direct WhatsApp prefilled order action
  */
-export function MenuCard({ item, onOpenLightbox }) {
+export function MenuCard({ item, onOpenLightbox, priority = false }) {
   const [selectedSize, setSelectedSize] = useState(
     item.pricingDetails && item.pricingDetails.length > 0
       ? item.pricingDetails[0].size
@@ -43,7 +43,8 @@ export function MenuCard({ item, onOpenLightbox }) {
           <img
             src={item.image}
             alt={item.alt || item.title}
-            loading="lazy"
+            loading={priority ? 'eager' : 'lazy'}
+            decoding="async"
             onError={(e) => {
               e.currentTarget.onerror = null;
               e.currentTarget.src = item.category?.includes('Brownie') || item.category?.includes('Cookie')
