@@ -30,11 +30,22 @@ export function FloatingTrackButton() {
           aria-label="Track your order status with mobile number"
         >
           {/* Icon Badge */}
-          <span className="relative flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#FEEDDD]/15 text-[#FFF9F3] group-hover:scale-110 transition-transform">
-            <Truck className="w-4 h-4 sm:w-4.5 sm:h-4.5 stroke-[2.2]" />
-            {/* Subtle beacon pulse */}
-            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 animate-ping opacity-75" />
-            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400" />
+          <span className="relative flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#FEEDDD]/15 text-[#FFF9F3]">
+            <motion.div
+              animate={{
+                x: [-0.5, 2, -0.5, 1.5, -0.5],
+                y: [0, -1.2, 0.3, -0.8, 0],
+                rotate: [0, -2, 1.5, -1, 0],
+              }}
+              transition={{
+                duration: 1.6,
+                repeat: Infinity,
+                ease: 'easeInOut',
+              }}
+              className="flex items-center justify-center group-hover:scale-110 transition-transform"
+            >
+              <Truck className="w-4 h-4 sm:w-4.5 sm:h-4.5 stroke-[2.2]" />
+            </motion.div>
           </span>
 
           {/* Text */}
