@@ -35,6 +35,16 @@ function App() {
                 </>
               }
             />
+            <Route
+              path="/order"
+              element={
+                <>
+                  <Navbar />
+                  <MenuPage />
+                  <Footer />
+                </>
+              }
+            />
             <Route path="/admin" element={<AdminPage />} />
             <Route
               path="*"

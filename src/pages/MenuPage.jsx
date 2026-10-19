@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Search,
@@ -21,9 +21,20 @@ import { AnimatedScriptWord } from '../components/AnimatedUnderline';
 import { API_BASE_URL } from '../utils/api';
 
 export function MenuPage() {
+  const [searchParams] = useSearchParams();
+  const initialCategory = searchParams.get('category') || 'All';
+
   const [menuItems, setMenuItems] = useState(creationsData);
   const [categoryList, setCategoryList] = useState(categories);
-  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [selectedCategory, setSelectedCategory] = useState(initialCategory);
+
+  // Sync category when URL search parameter changes
+  useEffect(() => {
+    const cat = searchParams.get('category');
+    if (cat) {
+      setSelectedCategory(cat);
+    }
+  }, [searchParams]);
   const [searchQuery, setSearchQuery] = useState('');
   const [priceRange, setPriceRange] = useState('all'); // 'all', 'under250', 'under500', 'above500'
   const [sortBy, setSortBy] = useState('featured'); // 'featured', 'priceAsc', 'priceDesc', 'name'
