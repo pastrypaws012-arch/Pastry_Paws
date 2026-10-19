@@ -135,16 +135,6 @@ export function Footer() {
 
           <div className="flex items-center gap-4">
             <Link
-              to="/track-order"
-              className="text-[11px] text-[#F9C8B5] hover:text-[#FFF9F3] underline underline-offset-4 transition-colors font-medium flex items-center gap-1"
-            >
-              <Package className="w-3 h-3" />
-              <span>Track Order Status</span>
-            </Link>
-
-            <span className="opacity-40">•</span>
-
-            <Link
               to="/admin"
               className="text-[11px] text-[#D29C83] hover:text-[#FEEDDD] underline underline-offset-4 transition-colors"
             >

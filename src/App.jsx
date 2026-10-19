@@ -7,6 +7,7 @@ import { HomePage } from './pages/HomePage';
 import { MenuPage } from './pages/MenuPage';
 import { TrackOrderPage } from './pages/TrackOrderPage';
 import { AdminPage } from './pages/AdminPage';
+import { FloatingTrackButton } from './components/FloatingTrackButton';
 
 function App() {
   return (
@@ -79,6 +80,8 @@ function App() {
             />
           </Routes>
         </main>
+        {/* Floating Quick Track Button */}
+        <FloatingTrackButton />
       </div>
     </BrowserRouter>
   );

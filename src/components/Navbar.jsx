@@ -123,7 +123,7 @@ export function Navbar() {
                 href={whatsappUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="hidden sm:inline-flex items-center gap-2 bg-[#7C3F27] text-[#FEEDDD] px-4.5 py-2.5 rounded-full text-xs md:text-sm font-medium tracking-wide whitespace-nowrap hover:bg-[#5E2B19] transition-all shadow-xs hover:shadow active:scale-[0.98] shrink-0"
+                className="hidden sm:inline-flex items-center gap-2 bg-[#7C3F27] text-[#FEEDDD] px-4 py-2 sm:px-4.5 sm:py-2.5 rounded-full text-xs md:text-sm font-medium tracking-wide whitespace-nowrap hover:bg-[#5E2B19] transition-all shadow-xs hover:shadow active:scale-[0.98] shrink-0"
               >
                 <MessageCircle className="w-3.5 h-3.5 text-[#F9C8B5]" />
                 <span className="whitespace-nowrap">Inquire on WhatsApp</span>
@@ -133,7 +133,7 @@ export function Navbar() {
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen(true)}
-                className="lg:hidden p-2.5 rounded-full text-[#411C10] bg-[#FEE5D2]/80 hover:bg-[#FEE5D2] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7C3F27]"
+                className="lg:hidden p-2 rounded-full text-[#411C10] bg-[#FEE5D2]/80 hover:bg-[#FEE5D2] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7C3F27]"
                 aria-label="Open navigation menu"
                 aria-expanded={mobileMenuOpen}
               >
