@@ -469,27 +469,29 @@ export function AdminPage() {
       </AnimatePresence>
 
       {/* Top Header */}
-      <header className="sticky top-0 z-40 bg-[#FFF9F3]/95 backdrop-blur-md border-b border-[#D29C83]/30 px-5 sm:px-8 py-3.5">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
+      <header className="sticky top-0 z-40 bg-[#FFF9F3]/95 backdrop-blur-md border-b border-[#D29C83]/30 px-4 sm:px-8 py-3">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <Link
               to="/menu"
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#7C3F27] hover:text-[#411C10] bg-[#FEEDDD] px-3 py-1.5 rounded-full border border-[#D29C83]/40 transition-colors"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#7C3F27] hover:text-[#411C10] bg-[#FEEDDD] px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-full border border-[#D29C83]/40 transition-colors shrink-0"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Back to Menu</span>
+              <span className="hidden sm:inline">Back to Menu</span>
+              <span className="sm:hidden">Menu</span>
             </Link>
-            <div>
-              <h1 className="font-serif text-lg sm:text-xl text-[#411C10] font-normal leading-tight flex items-center gap-2">
-                <span>Pastry Paws Admin</span>
-                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md bg-[#7C3F27] text-[#FFF9F3]">
+            <div className="min-w-0">
+              <h1 className="font-serif text-sm sm:text-xl text-[#411C10] font-normal leading-tight flex items-center gap-1.5 sm:gap-2">
+                <span className="hidden sm:inline">Pastry Paws Admin</span>
+                <span className="sm:hidden font-medium">Admin</span>
+                <span className="text-[9px] sm:text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md bg-[#7C3F27] text-[#FFF9F3] shrink-0">
                   Dashboard
                 </span>
               </h1>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={fetchData}
               title="Refresh Data"
@@ -499,7 +501,7 @@ export function AdminPage() {
             </button>
             <Link
               to="/"
-              className="text-xs text-[#7C3F27] hover:text-[#411C10] flex items-center gap-1 hidden sm:flex"
+              className="text-xs text-[#7C3F27] hover:text-[#411C10] items-center gap-1 hidden md:flex"
             >
               <span>View Website</span>
               <ExternalLink className="w-3 h-3" />
@@ -509,14 +511,15 @@ export function AdminPage() {
       </header>
 
       {/* Main Tabs Navigation */}
-      <div className="max-w-7xl mx-auto px-5 sm:px-8 pt-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-8 pt-5">
         <div className="flex items-center gap-2 border-b border-[#D29C83]/30 pb-3 overflow-x-auto no-scrollbar">
           <button
             onClick={() => setActiveTab('items')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all ${activeTab === 'items'
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all shrink-0 whitespace-nowrap cursor-pointer ${
+              activeTab === 'items'
                 ? 'bg-[#7C3F27] text-[#FFF9F3] shadow-xs'
                 : 'bg-[#FFF9F3] text-[#7C3F27] hover:bg-[#FEEDDD] border border-[#D29C83]/30'
-              }`}
+            }`}
           >
             <ShoppingBag className="w-4 h-4" />
             <span>Menu Items ({items.length})</span>
@@ -524,10 +527,11 @@ export function AdminPage() {
 
           <button
             onClick={() => setActiveTab('categories')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all ${activeTab === 'categories'
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all shrink-0 whitespace-nowrap cursor-pointer ${
+              activeTab === 'categories'
                 ? 'bg-[#7C3F27] text-[#FFF9F3] shadow-xs'
                 : 'bg-[#FFF9F3] text-[#7C3F27] hover:bg-[#FEEDDD] border border-[#D29C83]/30'
-              }`}
+            }`}
           >
             <Layers className="w-4 h-4" />
             <span>Categories ({categories.length})</span>
@@ -535,10 +539,11 @@ export function AdminPage() {
 
           <button
             onClick={() => setActiveTab('offerings')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all ${activeTab === 'offerings'
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all shrink-0 whitespace-nowrap cursor-pointer ${
+              activeTab === 'offerings'
                 ? 'bg-[#7C3F27] text-[#FFF9F3] shadow-xs'
                 : 'bg-[#FFF9F3] text-[#7C3F27] hover:bg-[#FEEDDD] border border-[#D29C83]/30'
-              }`}
+            }`}
           >
             <Sparkles className="w-4 h-4" />
             <span>Our Offerings ({offerings.length})</span>
@@ -546,34 +551,35 @@ export function AdminPage() {
 
           <button
             onClick={() => setActiveTab('orders')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all ${activeTab === 'orders'
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all shrink-0 whitespace-nowrap cursor-pointer ${
+              activeTab === 'orders'
                 ? 'bg-[#7C3F27] text-[#FFF9F3] shadow-xs'
                 : 'bg-[#FFF9F3] text-[#7C3F27] hover:bg-[#FEEDDD] border border-[#D29C83]/30'
-              }`}
+            }`}
           >
-            <Sparkles className="w-4 h-4" />
+            <ShoppingBag className="w-4 h-4" />
             <span>Orders ({orders.length})</span>
           </button>
 
           <button
             onClick={() => setActiveTab('database')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all ml-auto ${activeTab === 'database'
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all shrink-0 whitespace-nowrap cursor-pointer ml-auto ${
+              activeTab === 'database'
                 ? 'bg-[#7C3F27] text-[#FFF9F3] shadow-xs'
                 : 'bg-[#FFF9F3] text-[#7C3F27] hover:bg-[#FEEDDD] border border-[#D29C83]/30'
-              }`}
+            }`}
           >
             <Database className="w-4 h-4" />
-            <span className="hidden sm:inline">Atlas & Cloudinary</span>
-            <span className="sm:hidden">Status</span>
+            <span>Database Status</span>
           </button>
         </div>
 
-        {/* TAB 1: MENU ITEMS */}
+        {/* TAB 1: MENU ITEMS (CARD-BASED RESPONSIVE UI) */}
         {activeTab === 'items' && (
-          <div className="pt-6 space-y-5">
+          <div className="pt-5 space-y-4">
             {/* Action Bar */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-2 flex-1 max-w-md">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-1">
                 <div className="relative flex-1">
                   <Search className="w-4 h-4 text-[#A66D54] absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
@@ -606,7 +612,7 @@ export function AdminPage() {
                     category: categories[0]?.name || 'Cakes',
                     description: '',
                     image: '',
-                    googleDriveFileId: '',
+                    cloudinaryPublicId: '',
                     badge: '',
                     featured: false,
                     pricingDetails: [
@@ -616,125 +622,141 @@ export function AdminPage() {
                   });
                   setIsItemModalOpen(true);
                 }}
-                className="inline-flex items-center justify-center gap-2 bg-[#7C3F27] text-[#FEEDDD] hover:bg-[#5E2B19] py-2 px-4 rounded-xl text-xs sm:text-sm font-medium transition-all shadow-xs cursor-pointer"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-[#7C3F27] text-[#FEEDDD] hover:bg-[#5E2B19] py-2.5 px-4 rounded-xl text-xs sm:text-sm font-medium transition-all shadow-xs cursor-pointer shrink-0"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add New Creation</span>
               </button>
             </div>
 
-            {/* Items Table / Cards Grid */}
-            <div className="bg-[#FFF9F3] rounded-2xl border border-[#D29C83]/30 overflow-hidden shadow-xs">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-[#FEEDDD]/80 text-[#7C3F27] uppercase text-[10px] tracking-wider border-b border-[#D29C83]/30 font-semibold">
-                    <tr>
-                      <th className="px-4 py-3">Photo</th>
-                      <th className="px-4 py-3">Item Details</th>
-                      <th className="px-4 py-3">Category</th>
-                      <th className="px-4 py-3">Pricing Tiers (Weight / Price)</th>
-                      <th className="px-4 py-3">Badge / Featured</th>
-                      <th className="px-4 py-3 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#D29C83]/20">
-                    {filteredItems.map((item) => (
-                      <tr key={item.id || item._id} className="hover:bg-[#FEEDDD]/20 transition-colors">
-                        <td className="px-4 py-3 w-16">
-                          <img
-                            src={item.image}
-                            alt={item.title}
-                            className="w-12 h-12 rounded-xl object-cover border border-[#D29C83]/30 bg-[#FEEDDD]"
-                            onError={(e) => {
-                              e.currentTarget.src = 'https://res.cloudinary.com/ku59ko3p/image/upload/v1792430625/PastryPaws/hero-cake.jpg';
-                            }}
-                          />
-                        </td>
-                        <td className="px-4 py-3 max-w-xs">
-                          <span className="font-serif font-medium text-sm text-[#411C10] block">
-                            {item.title}
-                          </span>
-                          <span className="text-[11px] text-[#A66D54] line-clamp-1">
-                            {item.description}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="px-2.5 py-1 rounded-full text-[10px] font-semibold bg-[#FEEDDD] text-[#7C3F27] border border-[#D29C83]/30">
-                            {item.category}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex flex-wrap gap-1 max-w-xs">
-                            {item.pricingDetails && item.pricingDetails.length > 0 ? (
-                              item.pricingDetails.map((p, idx) => (
-                                <span
-                                  key={idx}
-                                  className="text-[10px] px-2 py-0.5 rounded-md bg-[#FFF9F3] border border-[#D29C83]/30 text-[#411C10]"
-                                >
-                                  <strong>{p.size}</strong>: {p.price}
-                                </span>
-                              ))
-                            ) : (
-                              <span className="text-[11px] text-[#7C3F27] font-semibold">
-                                From ₹{item.startingPrice}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-1.5 flex-wrap">
+            {/* Responsive Card Grid (Nothing goes off-screen) */}
+            {filteredItems.length === 0 ? (
+              <div className="text-center py-12 bg-[#FFF9F3] rounded-2xl border border-[#D29C83]/30 px-4">
+                <ShoppingBag className="w-8 h-8 text-[#D29C83] mx-auto mb-2" />
+                <p className="font-serif text-base text-[#411C10]">No creations match your search.</p>
+                <button
+                  onClick={() => {
+                    setSearchFilter('');
+                    setSelectedCategoryFilter('All');
+                  }}
+                  className="mt-2 text-xs text-[#7C3F27] underline cursor-pointer"
+                >
+                  Clear filters
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredItems.map((item) => (
+                  <div
+                    key={item.id || item._id}
+                    className="bg-[#FFF9F3] rounded-2xl border border-[#D29C83]/30 p-4 flex flex-col justify-between shadow-2xs hover:shadow-xs transition-all"
+                  >
+                    <div>
+                      {/* Top Row: Thumbnail + Title & Category */}
+                      <div className="flex gap-3.5 items-start">
+                        <img
+                          src={item.image}
+                          alt={item.title}
+                          className="w-20 h-20 sm:w-22 sm:h-22 rounded-xl object-cover border border-[#D29C83]/30 bg-[#FEEDDD] shrink-0"
+                          onError={(e) => {
+                            e.currentTarget.src =
+                              'https://res.cloudinary.com/ku59ko3p/image/upload/v1792430625/PastryPaws/hero-cake.jpg';
+                          }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                            <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-md bg-[#FEEDDD] text-[#7C3F27] border border-[#D29C83]/30">
+                              {item.category}
+                            </span>
                             {item.badge && (
-                              <span className="text-[9px] uppercase font-bold px-2 py-0.5 rounded-md bg-[#7C3F27] text-white">
+                              <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-[#7C3F27] text-white">
                                 {item.badge}
                               </span>
                             )}
                             {item.featured && (
-                              <span className="text-[9px] uppercase font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 border border-amber-300">
+                              <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300">
                                 Featured
                               </span>
                             )}
                           </div>
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            <button
-                              onClick={() => {
-                                setEditingItem(item);
-                                setItemForm({
-                                  title: item.title,
-                                  category: item.category,
-                                  description: item.description || '',
-                                  image: item.image || '',
-                                  googleDriveFileId: item.googleDriveFileId || '',
-                                  badge: item.badge || '',
-                                  featured: Boolean(item.featured),
-                                  pricingDetails:
-                                    item.pricingDetails && item.pricingDetails.length > 0
-                                      ? item.pricingDetails
-                                      : [{ size: 'Portion', price: `₹${item.startingPrice}/-` }],
-                                });
-                                setIsItemModalOpen(true);
-                              }}
-                              className="p-1.5 text-[#7C3F27] hover:bg-[#FEEDDD] rounded-lg transition-colors cursor-pointer"
-                              title="Edit item"
-                            >
-                              <Edit2 className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteItem(item)}
-                              className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                              title="Delete item"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                          <h4 className="font-serif font-medium text-base text-[#411C10] leading-snug line-clamp-2">
+                            {item.title}
+                          </h4>
+                          {item.description && (
+                            <p className="text-[11px] text-[#7C3F27]/80 line-clamp-2 mt-1 leading-relaxed">
+                              {item.description}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Pricing Tiers Container */}
+                      <div className="mt-3 pt-3 border-t border-[#D29C83]/20">
+                        <div className="text-[10px] uppercase tracking-wider text-[#A66D54] font-semibold mb-1.5">
+                          Pricing Tiers:
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {item.pricingDetails && item.pricingDetails.length > 0 ? (
+                            item.pricingDetails.map((p, idx) => (
+                              <span
+                                key={idx}
+                                className="text-[11px] px-2 py-0.5 rounded-lg bg-[#FEEDDD]/70 border border-[#D29C83]/25 text-[#411C10]"
+                              >
+                                {p.size}: <strong className="text-[#7C3F27]">{p.price}</strong>
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-xs text-[#7C3F27] font-semibold">
+                              From ₹{item.startingPrice || '—'}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Bottom Row: Actions */}
+                    <div className="mt-4 pt-3 border-t border-[#D29C83]/20 flex items-center justify-between gap-2">
+                      <span className="text-[11px] text-[#A66D54]">
+                        Starting: <strong className="text-[#411C10]">₹{item.startingPrice || item.pricingDetails?.[0]?.price?.replace(/[^\d]/g, '') || '—'}</strong>
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => {
+                            setEditingItem(item);
+                            setItemForm({
+                              title: item.title,
+                              category: item.category,
+                              description: item.description || '',
+                              image: item.image || '',
+                              cloudinaryPublicId: item.cloudinaryPublicId || '',
+                              badge: item.badge || '',
+                              featured: Boolean(item.featured),
+                              pricingDetails:
+                                item.pricingDetails && item.pricingDetails.length > 0
+                                  ? item.pricingDetails
+                                  : [{ size: 'Portion', price: `₹${item.startingPrice}/-` }],
+                            });
+                            setIsItemModalOpen(true);
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#FEEDDD] hover:bg-[#7C3F27] text-[#7C3F27] hover:text-[#FEEDDD] rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+                          title="Edit creation"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                          <span>Edit</span>
+                        </button>
+                        <button
+                          onClick={() => handleDeleteItem(item)}
+                          className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer border border-transparent hover:border-rose-200"
+                          title="Delete creation"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
+            )}
           </div>
         )}
 
@@ -794,8 +816,8 @@ export function AdminPage() {
 
         {/* TAB: OUR OFFERINGS */}
         {activeTab === 'offerings' && (
-          <div className="pt-6 space-y-5">
-            <div className="flex items-center justify-between">
+          <div className="pt-5 space-y-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div>
                 <h3 className="font-serif text-lg text-[#411C10]">Our Offerings (Specialties)</h3>
                 <p className="text-xs text-[#7C3F27]">
@@ -804,7 +826,7 @@ export function AdminPage() {
               </div>
               <button
                 onClick={() => handleOpenOfferingModal()}
-                className="inline-flex items-center gap-1.5 bg-[#7C3F27] text-[#FEEDDD] hover:bg-[#5E2B19] py-2 px-3.5 rounded-xl text-xs sm:text-sm font-medium transition-all shadow-xs cursor-pointer"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 bg-[#7C3F27] text-[#FEEDDD] hover:bg-[#5E2B19] py-2 px-3.5 rounded-xl text-xs sm:text-sm font-medium transition-all shadow-xs cursor-pointer shrink-0"
               >
                 <Plus className="w-4 h-4" />
                 <span>New Offering</span>
@@ -815,63 +837,70 @@ export function AdminPage() {
               {offerings.map((off, idx) => (
                 <div
                   key={off._id || off.id || idx}
-                  className="p-4 rounded-2xl bg-[#FFF9F3] border border-[#D29C83]/30 shadow-xs flex gap-4 items-start hover:shadow-sm transition-shadow"
+                  className="p-4 rounded-2xl bg-[#FFF9F3] border border-[#D29C83]/30 shadow-2xs hover:shadow-xs transition-shadow flex flex-col justify-between"
                 >
-                  <img
-                    src={off.image}
-                    alt={off.title}
-                    className="w-20 h-20 rounded-xl object-cover border border-[#D29C83]/30 bg-[#FEEDDD] shrink-0"
-                    onError={(e) => {
-                      e.currentTarget.src = 'https://res.cloudinary.com/ku59ko3p/image/upload/v1792430625/PastryPaws/hero-cake.jpg';
-                    }}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-bold text-[#7C3F27] bg-[#FEEDDD] px-2 py-0.5 rounded border border-[#D29C83]/30">
-                        {off.number || `0${idx + 1}`}
-                      </span>
-                      <h4 className="font-serif font-medium text-sm text-[#411C10] truncate">
-                        {off.title}
-                      </h4>
+                  <div className="flex gap-3.5 items-start">
+                    <img
+                      src={off.image}
+                      alt={off.title}
+                      className="w-20 h-20 rounded-xl object-cover border border-[#D29C83]/30 bg-[#FEEDDD] shrink-0"
+                      onError={(e) => {
+                        e.currentTarget.src =
+                          'https://res.cloudinary.com/ku59ko3p/image/upload/v1792430625/PastryPaws/hero-cake.jpg';
+                      }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <span className="text-[10px] font-bold text-[#7C3F27] bg-[#FEEDDD] px-2 py-0.5 rounded border border-[#D29C83]/30">
+                          {off.number || `0${idx + 1}`}
+                        </span>
+                        <h4 className="font-serif font-medium text-base text-[#411C10] truncate">
+                          {off.title}
+                        </h4>
+                      </div>
+                      {off.subtitle && (
+                        <p className="text-[11px] text-[#A66D54] font-medium truncate">
+                          {off.subtitle}
+                        </p>
+                      )}
+                      {off.description && (
+                        <p className="text-[11px] text-[#7C3F27]/85 mt-1 line-clamp-2 leading-relaxed">
+                          {off.description}
+                        </p>
+                      )}
                     </div>
-                    {off.subtitle && (
-                      <p className="text-[11px] text-[#A66D54] font-medium mt-0.5 truncate">
-                        {off.subtitle}
-                      </p>
-                    )}
-                    {off.description && (
-                      <p className="text-[11px] text-[#7C3F27] mt-1 line-clamp-2">
-                        {off.description}
-                      </p>
-                    )}
-                    <div className="flex items-center gap-2 mt-2">
+                  </div>
+
+                  <div className="mt-3.5 pt-3 border-t border-[#D29C83]/20 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       {off.accent && (
-                        <span className="text-[10px] bg-[#FEEDDD] text-[#7C3F27] px-2 py-0.5 rounded-full">
+                        <span className="text-[10px] bg-[#FEEDDD] text-[#7C3F27] px-2 py-0.5 rounded-full font-medium">
                           {off.accent}
                         </span>
                       )}
                       {off.price && (
-                        <span className="text-[11px] font-bold text-[#411C10]">
+                        <span className="text-xs font-bold text-[#411C10]">
                           {off.price}
                         </span>
                       )}
                     </div>
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <button
-                      onClick={() => handleOpenOfferingModal(off)}
-                      className="p-1.5 text-[#7C3F27] hover:bg-[#FEEDDD] rounded-lg transition-colors cursor-pointer"
-                      title="Edit offering"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteOffering(off)}
-                      className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                      title="Delete offering"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        onClick={() => handleOpenOfferingModal(off)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-[#FEEDDD] hover:bg-[#7C3F27] text-[#7C3F27] hover:text-[#FEEDDD] rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+                        title="Edit offering"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                        <span>Edit</span>
+                      </button>
+                      <button
+                        onClick={() => handleDeleteOffering(off)}
+                        className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
+                        title="Delete offering"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -881,18 +910,16 @@ export function AdminPage() {
 
         {/* TAB 3: ORDERS */}
         {activeTab === 'orders' && (
-          <div className="pt-6 space-y-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-serif text-lg text-[#411C10]">Recent Orders</h3>
-                <p className="text-xs text-[#7C3F27]">
-                  Orders submitted through the website's Order Now button.
-                </p>
-              </div>
+          <div className="pt-5 space-y-4">
+            <div>
+              <h3 className="font-serif text-lg text-[#411C10]">Customer Orders</h3>
+              <p className="text-xs text-[#7C3F27]">
+                Live orders submitted through the website, sorted by most recent.
+              </p>
             </div>
 
             {orders.length === 0 ? (
-              <div className="text-center py-12 bg-[#FFF9F3] rounded-2xl border border-[#D29C83]/30 max-w-md mx-auto">
+              <div className="text-center py-12 bg-[#FFF9F3] rounded-2xl border border-[#D29C83]/30 max-w-md mx-auto px-4">
                 <ShoppingBag className="w-10 h-10 text-[#D29C83] mx-auto mb-2" />
                 <p className="font-serif text-lg text-[#411C10]">No orders received yet</p>
                 <p className="text-xs text-[#7C3F27] mt-1">
@@ -900,18 +927,18 @@ export function AdminPage() {
                 </p>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {orders.map((ord) => (
                   <div
                     key={ord._id || ord.orderId}
-                    className="p-4 sm:p-5 rounded-2xl bg-[#FFF9F3] border border-[#D29C83]/30 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+                    className="p-4 sm:p-5 rounded-2xl bg-[#FFF9F3] border border-[#D29C83]/30 shadow-2xs hover:shadow-xs transition-shadow flex flex-col justify-between"
                   >
                     <div>
-                      <div className="flex items-center gap-2 mb-1">
+                      <div className="flex items-center justify-between gap-2 mb-2">
                         <span className="text-xs font-bold text-[#7C3F27] bg-[#FEEDDD] px-2.5 py-0.5 rounded-md border border-[#D29C83]/30">
                           {ord.orderId}
                         </span>
-                        <span className="text-xs text-[#A66D54]">
+                        <span className="text-[11px] text-[#A66D54]">
                           {new Date(ord.createdAt || Date.now()).toLocaleDateString('en-IN', {
                             day: 'numeric',
                             month: 'short',
@@ -920,29 +947,43 @@ export function AdminPage() {
                           })}
                         </span>
                       </div>
-                      <h4 className="font-serif text-base text-[#411C10]">
-                        {ord.itemTitle} ({ord.selectedSize}) - <strong className="text-[#7C3F27]">{ord.price}</strong>
+
+                      <h4 className="font-serif text-base text-[#411C10] leading-snug">
+                        {ord.itemTitle} ({ord.selectedSize})
                       </h4>
-                      <p className="text-xs text-[#7C3F27] mt-0.5">
-                        Customer: <strong>{ord.customerName}</strong> ({ord.customerPhone}) | Address: {ord.deliveryAddress}
-                      </p>
-                      {ord.notes && (
-                        <p className="text-[11px] text-[#A66D54] italic mt-1">
-                          Note: "{ord.notes}"
+                      <div className="text-sm font-bold text-[#7C3F27] mt-0.5">
+                        {ord.price}
+                      </div>
+
+                      <div className="mt-3 pt-3 border-t border-[#D29C83]/20 text-xs text-[#7C3F27] space-y-1">
+                        <p>
+                          <span className="text-[#A66D54]">Customer:</span>{' '}
+                          <strong className="text-[#411C10]">{ord.customerName}</strong> ({ord.customerPhone})
                         </p>
-                      )}
+                        <p className="break-words">
+                          <span className="text-[#A66D54]">Delivery Address:</span>{' '}
+                          <span className="text-[#411C10]">{ord.deliveryAddress}</span>
+                        </p>
+                        {ord.notes && (
+                          <p className="text-[11px] text-[#A66D54] italic mt-1 bg-[#FEEDDD]/40 p-2 rounded-lg">
+                            Note: "{ord.notes}"
+                          </p>
+                        )}
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-2 self-end sm:self-auto">
+                    <div className="mt-4 pt-3 border-t border-[#D29C83]/20 flex items-center justify-between gap-2">
+                      <span className="text-[11px] text-[#A66D54] font-medium">Status:</span>
                       <select
                         value={ord.status || 'pending'}
                         onChange={(e) => handleUpdateOrderStatus(ord._id, e.target.value)}
-                        className={`text-xs font-semibold px-3 py-1.5 rounded-xl border focus:outline-none ${ord.status === 'delivered'
+                        className={`text-xs font-semibold px-3 py-1.5 rounded-xl border focus:outline-none cursor-pointer ${
+                          ord.status === 'delivered'
                             ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
                             : ord.status === 'baking'
-                              ? 'bg-amber-50 text-amber-800 border-amber-300'
-                              : 'bg-[#FEEDDD] text-[#7C3F27] border-[#D29C83]/40'
-                          }`}
+                            ? 'bg-amber-50 text-amber-800 border-amber-300'
+                            : 'bg-[#FEEDDD] text-[#7C3F27] border-[#D29C83]/40'
+                        }`}
                       >
                         <option value="pending">Pending</option>
                         <option value="confirmed">Confirmed</option>
@@ -1126,7 +1167,7 @@ export function AdminPage() {
                     <div className="flex-1 space-y-1.5">
                       <label className="inline-flex items-center gap-1.5 bg-[#FEEDDD] text-[#7C3F27] hover:bg-[#FEE5D2] px-3 py-2 rounded-xl text-xs font-medium cursor-pointer border border-[#D29C83]/30 transition-colors">
                         <Upload className="w-3.5 h-3.5" />
-                        <span>{uploadingImage ? 'Uploading to Drive...' : 'Upload Image'}</span>
+                        <span>{uploadingImage ? 'Uploading to Cloudinary...' : 'Upload Image'}</span>
                         <input
                           type="file"
                           accept="image/*"
