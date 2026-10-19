@@ -50,7 +50,7 @@ export function AdminPage() {
     category: '',
     description: '',
     image: '',
-    googleDriveFileId: '',
+    cloudinaryPublicId: '',
     badge: '',
     featured: false,
     pricingDetails: [{ size: '250gm', price: '₹199/-' }],
@@ -126,11 +126,11 @@ export function AdminPage() {
         setItemForm((prev) => ({
           ...prev,
           image: data.imageUrl,
-          googleDriveFileId: data.fileId || '',
+          cloudinaryPublicId: data.publicId || '',
         }));
         showToast(
-          data.storage === 'google_drive'
-            ? 'Uploaded directly to Google Drive!'
+          data.storage === 'cloudinary'
+            ? 'Uploaded and optimized on Cloudinary CDN!'
             : 'Image saved to uploads directory'
         );
       } else {
@@ -414,7 +414,7 @@ export function AdminPage() {
             }`}
           >
             <Database className="w-4 h-4" />
-            <span className="hidden sm:inline">Atlas & Drive Status</span>
+            <span className="hidden sm:inline">Atlas & Cloudinary</span>
             <span className="sm:hidden">Status</span>
           </button>
         </div>
@@ -754,30 +754,30 @@ export function AdminPage() {
               </div>
             </div>
 
-            {/* Google Drive Card */}
+            {/* Cloudinary CDN Card */}
             <div className="p-5 rounded-2xl bg-[#FFF9F3] border border-[#D29C83]/30 shadow-xs space-y-3">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center border border-blue-200">
                   <Cloud className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-serif text-base text-[#411C10]">Google Drive Image Storage</h3>
+                  <h3 className="font-serif text-base text-[#411C10]">Cloudinary Image CDN</h3>
                   <p className="text-xs text-[#7C3F27]">
-                    Uploads bakery item photos straight into your Google Drive folder and generates public links.
+                    High-speed global image delivery, automatic WebP format conversion, and responsive optimization.
                   </p>
                 </div>
               </div>
 
               <div className="p-3 bg-[#FEEDDD]/40 rounded-xl text-xs space-y-1.5 border border-[#D29C83]/25">
                 <div className="flex justify-between">
-                  <span className="text-[#A66D54]">Folder ID:</span>
-                  <span className="font-mono text-[#411C10]">
-                    {process.env.GOOGLE_DRIVE_FOLDER_ID ? 'Configured' : 'Set GOOGLE_DRIVE_FOLDER_ID in .env'}
+                  <span className="text-[#A66D54]">Cloudinary Keys:</span>
+                  <span className="font-semibold text-[#7C3F27]">
+                    Configure CLOUDINARY_CLOUD_NAME, API_KEY, & API_SECRET in Backend/.env
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-[#A66D54]">Fallback Storage:</span>
-                  <span className="text-[#7C3F27]">Local /public/images/uploads directory</span>
+                  <span className="text-[#7C3F27]">Local uploads folder (works automatically offline)</span>
                 </div>
               </div>
             </div>
