@@ -32,9 +32,9 @@ export function MenuPage() {
         // Category filter
         const matchCategory =
           selectedCategory === 'All' ||
-          item.category.toLowerCase().includes(selectedCategory.toLowerCase()) ||
-          (selectedCategory === 'Brownie' && item.category.toLowerCase().includes('brownie')) ||
-          (selectedCategory === 'Cakes' && item.category.toLowerCase().includes('cake') && item.category !== 'Choco Lava Cake');
+          item.category === selectedCategory ||
+          (selectedCategory === 'Brownies' && (item.category === 'Brownies' || item.category === 'Brownie')) ||
+          (selectedCategory === 'Cakes' && item.category === 'Cakes');
 
         // Search query filter
         const query = searchQuery.trim().toLowerCase();
