@@ -112,7 +112,6 @@ export function AdminPage() {
     reviewsCount: '5.0 ★★★★★ on Google',
     googleMapsUrl: 'https://maps.app.goo.gl/NrA698fpTvKPwvKx6',
     placeId: 'ChIJ9a1uLoipUjoR-t29x-KVXvc',
-    googlePlacesApiKey: '',
   });
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [reviewsFilterRating, setReviewsFilterRating] = useState('all'); // 'all' | '5' | '4' | 'below4'
@@ -133,7 +132,6 @@ export function AdminPage() {
   const [savingReview, setSavingReview] = useState(false);
   const [deletingReview, setDeletingReview] = useState(null);
   const [savingReviewsSummary, setSavingReviewsSummary] = useState(false);
-  const [syncingGoogleReviews, setSyncingGoogleReviews] = useState(false);
   const [isEditSummaryModalOpen, setIsEditSummaryModalOpen] = useState(false);
   const [summaryForm, setSummaryForm] = useState({
     placeName: 'Pastry Paws',
@@ -141,7 +139,6 @@ export function AdminPage() {
     reviewsCount: '5.0 ★★★★★ on Google',
     googleMapsUrl: 'https://maps.app.goo.gl/NrA698fpTvKPwvKx6',
     placeId: 'ChIJ9a1uLoipUjoR-t29x-KVXvc',
-    googlePlacesApiKey: '',
   });
 
   // TAB 1: Menu Items Filter & Sort States
@@ -586,44 +583,6 @@ export function AdminPage() {
       showToast('Network error updating place settings', 'error');
     } finally {
       setSavingReviewsSummary(false);
-    }
-  };
-
-  // Sync with Google Maps Places API
-  const handleSyncGoogleReviews = async () => {
-    setSyncingGoogleReviews(true);
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/google-reviews/sync`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey: summaryForm.googlePlacesApiKey || reviewsSummary.googlePlacesApiKey }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        showToast(
-          `Sync completed! Updated summary & synced ${data.importedCount || 0} reviews.`,
-          'success'
-        );
-        if (data.summary) {
-          setReviewsSummary(data.summary);
-          setSummaryForm(data.summary);
-        }
-        const refreshRes = await fetch(`${API_BASE_URL}/api/google-reviews/admin`);
-        if (refreshRes.ok) {
-          const rData = await refreshRes.json();
-          if (rData.success) setGoogleReviews(rData.reviews || []);
-        }
-      } else {
-        showToast(
-          data.message ||
-            'Could not sync. Ensure your Google Places API Key is entered in Place Settings.',
-          'error'
-        );
-      }
-    } catch {
-      showToast('Network error syncing with Google Places API', 'error');
-    } finally {
-      setSyncingGoogleReviews(false);
     }
   };
 
@@ -3613,8 +3572,9 @@ export function AdminPage() {
                   <div>
                     <h3 className="font-serif text-xl text-[#411C10] flex items-center gap-2">
                       <span>Google Reviews & Business Profile</span>
-                      <span className="text-[11px] font-sans font-semibold bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full border border-emerald-300">
-                        Live Sync Active
+                      <span className="text-[11px] font-sans font-semibold bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full border border-emerald-300 flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                        <span>Verified Business Listing</span>
                       </span>
                     </h3>
                     <p className="text-xs text-[#7C3F27] mt-0.5">
@@ -3646,16 +3606,6 @@ export function AdminPage() {
                 >
                   <Edit2 className="w-3.5 h-3.5" />
                   <span>Place Settings</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleSyncGoogleReviews}
-                  disabled={syncingGoogleReviews}
-                  className="inline-flex items-center justify-center gap-1.5 bg-[#FEEDDD]/80 hover:bg-[#FEEDDD] text-[#7C3F27] border border-[#D29C83]/40 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-2xs disabled:opacity-60"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${syncingGoogleReviews ? 'animate-spin text-amber-600' : ''}`} />
-                  <span>{syncingGoogleReviews ? 'Syncing...' : 'Sync with Google'}</span>
                 </button>
 
                 <button
@@ -5390,22 +5340,6 @@ export function AdminPage() {
                   />
                   <p className="text-[10px] text-[#A66D54] mt-1">
                     Resolved Place ID for Pastry Paws Avadi: <span className="font-mono text-[#7C3F27]">ChIJ9a1uLoipUjoR-t29x-KVXvc</span>
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-[#411C10] mb-1">
-                    Google Places API Key (Optional)
-                  </label>
-                  <input
-                    type="password"
-                    value={summaryForm.googlePlacesApiKey || ''}
-                    onChange={(e) => setSummaryForm({ ...summaryForm, googlePlacesApiKey: e.target.value })}
-                    placeholder="AIzaSy..."
-                    className="w-full px-3.5 py-2 text-xs rounded-xl border border-[#D29C83]/40 bg-[#FFFDF9] text-[#411C10] font-mono focus:outline-none focus:border-[#7C3F27]"
-                  />
-                  <p className="text-[10px] text-[#A66D54] mt-1">
-                    Optional: If supplied, clicking "Sync with Google" will automatically fetch new reviews directly from Google Places API.
                   </p>
                 </div>
 
