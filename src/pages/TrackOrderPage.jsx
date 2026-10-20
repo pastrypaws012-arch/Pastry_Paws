@@ -112,6 +112,19 @@ export function TrackOrderPage() {
   const [reuploadLoading, setReuploadLoading] = useState(false);
   const [previewReceiptUrl, setPreviewReceiptUrl] = useState(null);
   const [copiedUpiInTracker, setCopiedUpiInTracker] = useState(false);
+  const [generatingInvoiceId, setGeneratingInvoiceId] = useState(null);
+
+  const handleDownloadInvoice = async (order) => {
+    const targetId = order.orderId || order._id;
+    setGeneratingInvoiceId(targetId);
+    try {
+      await printOrderInvoice(order);
+    } catch (err) {
+      console.error('Invoice generation error:', err);
+    } finally {
+      setGeneratingInvoiceId(null);
+    }
+  };
 
   // Handle Customer Cancellation Request (Pending only, requires reason)
   const handleConfirmCancel = async () => {
@@ -532,10 +545,10 @@ export function TrackOrderPage() {
                 >
                   {/* Order Card Top Bar */}
                   <div className="bg-[#FEEDDD]/70 px-5 sm:px-6 py-3.5 border-b border-[#D29C83]/20 flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-4 sm:gap-6">
                       <div>
-                        <span className="text-[10px] uppercase tracking-wider text-[#A66D54] block">
-                          Order Reference
+                        <span className="text-[10px] uppercase tracking-wider text-[#A66D54] block font-bold">
+                          Order ID
                         </span>
                         <div className="flex items-center gap-2">
                           <span className="font-mono text-sm sm:text-base font-bold text-[#411C10]">
@@ -544,7 +557,7 @@ export function TrackOrderPage() {
                           <button
                             type="button"
                             onClick={() => handleCopyOrderId(order.orderId)}
-                            className="p-1 rounded text-[#7C3F27] hover:bg-[#FEE5D2] transition-colors"
+                            className="p-1 rounded text-[#7C3F27] hover:bg-[#FEE5D2] transition-colors cursor-pointer"
                             title="Copy Order ID"
                           >
                             {copiedId === order.orderId ? (
@@ -553,6 +566,36 @@ export function TrackOrderPage() {
                               <Copy className="w-3.5 h-3.5" />
                             )}
                           </button>
+                        </div>
+                      </div>
+
+                      {/* Transaction ID / UTR prominently displayed in top bar */}
+                      <div className="border-l border-[#D29C83]/40 pl-3 sm:pl-4">
+                        <span className="text-[10px] uppercase tracking-wider text-[#A66D54] block font-bold">
+                          UPI Transaction ID / UTR
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono text-xs sm:text-sm font-bold text-[#7C3F27] bg-[#FFF9F3] px-2.5 py-0.5 rounded-md border border-[#D29C83]/40 select-all">
+                            {order.transactionId || 'Pending Verification'}
+                          </span>
+                          {order.transactionId && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(order.transactionId);
+                                setCopiedId(order.transactionId);
+                                setTimeout(() => setCopiedId(null), 2000);
+                              }}
+                              className="p-1 rounded text-[#7C3F27] hover:bg-[#FEE5D2] transition-colors cursor-pointer"
+                              title="Copy UPI UTR Number"
+                            >
+                              {copiedId === order.transactionId ? (
+                                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                              ) : (
+                                <Copy className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -659,10 +702,16 @@ export function TrackOrderPage() {
                         </p>
 
                         {/* Customer & Address Details */}
-                        <div className="mt-3 p-3 rounded-2xl bg-[#FEEDDD]/40 border border-[#D29C83]/25 text-xs text-[#411C10] space-y-1">
+                        <div className="mt-3 p-3 rounded-2xl bg-[#FEEDDD]/40 border border-[#D29C83]/25 text-xs text-[#411C10] space-y-1.5">
                           <p>
                             <span className="text-[#A66D54]">Recipient:</span>{' '}
                             <strong>{order.customerName}</strong> ({order.customerPhone})
+                          </p>
+                          <p>
+                            <span className="text-[#A66D54]">UPI UTR / Transaction ID:</span>{' '}
+                            <strong className="font-mono text-[#7C3F27] bg-[#FFF9F3] px-2 py-0.5 rounded border border-[#D29C83]/30 select-all">
+                              {order.transactionId || 'Pending Verification'}
+                            </strong>
                           </p>
                           <p className="line-clamp-2">
                             <span className="text-[#A66D54]">Delivery Address:</span>{' '}
@@ -846,12 +895,22 @@ export function TrackOrderPage() {
                         {/* Download Invoice PDF Button */}
                         <button
                           type="button"
-                          onClick={() => printOrderInvoice(order)}
-                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#FFF9F3] hover:bg-[#FEEDDD] text-[#7C3F27] border border-[#D29C83]/35 text-xs font-semibold transition-all shadow-2xs hover:shadow cursor-pointer"
-                          title="Download or Print Official Invoice PDF"
+                          disabled={generatingInvoiceId === (order.orderId || order._id)}
+                          onClick={() => handleDownloadInvoice(order)}
+                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#FFF9F3] hover:bg-[#FEEDDD] text-[#7C3F27] border border-[#D29C83]/35 text-xs font-semibold transition-all shadow-2xs hover:shadow cursor-pointer disabled:opacity-60"
+                          title="Dynamically fetch fresh invoice from database and download PDF"
                         >
-                          <Download className="w-3.5 h-3.5" />
-                          <span>Invoice PDF</span>
+                          {generatingInvoiceId === (order.orderId || order._id) ? (
+                            <>
+                              <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#7C3F27]" />
+                              <span>Fetching Bill...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Download className="w-3.5 h-3.5" />
+                              <span>Invoice (PDF)</span>
+                            </>
+                          )}
                         </button>
 
                         {/* Request Cancellation button: ONLY shown if status is 'pending' and not already requested */}
