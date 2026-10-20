@@ -97,6 +97,10 @@ export function generateOrderInvoiceHtml(order) {
       ? '#EF9A9A'
       : '#FFE082';
 
+  const grandTotalLabel = isCOD
+    ? (isPaid ? 'Total Paid (COD):' : 'Total Due on Delivery (COD):')
+    : (isPaid ? 'Total Paid (Verified UPI):' : 'Total Payable:');
+
   // Live tracking URL encoded in QR Code
   const trackingUrl = `https://pastrypaws.com/track-order?phone=${encodeURIComponent(
     order.customerPhone || ''
@@ -549,6 +553,129 @@ export function generateOrderInvoiceHtml(order) {
       margin-bottom: 4px;
     }
 
+    .meta-code {
+      font-family: 'JetBrains Mono', monospace;
+      white-space: nowrap;
+      font-weight: 700;
+    }
+
+    /* Responsive Styling for Mobile Devices */
+    @media (max-width: 680px) {
+      body {
+        padding: 10px 6px !important;
+      }
+      .invoice-wrapper {
+        padding: 20px 16px !important;
+        border-radius: 16px !important;
+      }
+      .print-bar {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 10px !important;
+        padding: 12px 14px !important;
+      }
+      .print-btn {
+        width: 100% !important;
+        justify-content: center !important;
+      }
+      .invoice-header {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 16px !important;
+        margin-bottom: 20px !important;
+        padding-bottom: 20px !important;
+      }
+      .brand-title {
+        font-size: 26px !important;
+      }
+      .invoice-badge-box {
+        text-align: left !important;
+        width: 100% !important;
+        padding-top: 14px !important;
+        border-top: 1px dashed rgba(210, 156, 131, 0.45) !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 8px !important;
+      }
+      .invoice-title {
+        font-size: 22px !important;
+      }
+      .invoice-meta {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 6px 10px !important;
+      }
+      .invoice-meta p {
+        white-space: nowrap !important;
+        font-size: 11.5px !important;
+      }
+      .status-pill {
+        grid-column: 1 / -1 !important;
+        display: inline-block !important;
+        width: fit-content !important;
+        margin-top: 6px !important;
+      }
+      .payment-highlight-banner {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 12px !important;
+        padding: 14px 14px !important;
+      }
+      .payment-highlight-value {
+        font-size: 12.5px !important;
+        word-break: break-word !important;
+      }
+      .billing-grid {
+        grid-template-columns: 1fr !important;
+        gap: 16px !important;
+        padding: 16px 14px !important;
+      }
+      .items-table {
+        width: 100% !important;
+      }
+      .items-table th,
+      .items-table td {
+        padding: 10px 8px !important;
+        font-size: 12px !important;
+      }
+      .items-table th:first-child,
+      .items-table td:first-child {
+        padding-left: 8px !important;
+      }
+      .items-table th:last-child,
+      .items-table td:last-child {
+        padding-right: 8px !important;
+      }
+      .item-title {
+        font-size: 13px !important;
+      }
+      .item-subtitle {
+        font-size: 10.5px !important;
+      }
+      .summary-section {
+        flex-direction: column !important;
+        gap: 16px !important;
+      }
+      .totals-box {
+        width: 100% !important;
+        order: 1 !important;
+        padding: 16px 18px !important;
+      }
+      .notes-box {
+        width: 100% !important;
+        order: 2 !important;
+        padding: 16px 18px !important;
+      }
+      .seal-section {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 16px !important;
+      }
+      .bakery-seal {
+        text-align: left !important;
+      }
+    }
+
     /* Print Media Styling for Crisp 1-Page A4 PDF */
     @media print {
       body {
@@ -608,10 +735,10 @@ export function generateOrderInvoiceHtml(order) {
         <div class="invoice-badge-box">
           <div class="invoice-title">TAX INVOICE</div>
           <div class="invoice-meta">
-            <p><strong>Invoice No:</strong> #${invoiceNo}</p>
-            <p><strong>Order ID:</strong> #${order.orderId}</p>
-            <p><strong>Date:</strong> ${orderDate}</p>
-            ${orderTime ? `<p><strong>Time:</strong> ${orderTime}</p>` : ''}
+            <p><strong>Invoice No:</strong> <span class="meta-code">#${invoiceNo}</span></p>
+            <p><strong>Order ID:</strong> <span class="meta-code">#${order.orderId}</span></p>
+            <p><strong>Date:</strong> <span>${orderDate}</span></p>
+            ${orderTime ? `<p><strong>Time:</strong> <span>${orderTime}</span></p>` : ''}
             <div>
               <span class="status-pill">${statusBadgeText}</span>
             </div>
@@ -650,8 +777,8 @@ export function generateOrderInvoiceHtml(order) {
           <span class="section-label">Billed To (Customer Details)</span>
           <p class="info-line"><strong>${order.customerName || 'Valued Guest'}</strong></p>
           <p class="info-line">Registered Phone: <strong>+91 ${order.customerPhone || 'N/A'}</strong></p>
-          <p class="info-line">Order Ref: <strong>#${order.orderId}</strong></p>
-          <p class="info-line">Transaction UTR: <strong style="font-family: 'JetBrains Mono', monospace;">${order.transactionId || 'N/A'}</strong></p>
+          <p class="info-line">Order Ref: <strong class="meta-code">#${order.orderId}</strong></p>
+          <p class="info-line">Transaction: <strong style="font-family: 'JetBrains Mono', monospace;">${order.transactionId || (isCOD ? 'Cash on Delivery' : 'N/A')}</strong></p>
         </div>
 
         <div>
@@ -717,7 +844,7 @@ export function generateOrderInvoiceHtml(order) {
             <span style="color: #6E4738;">Inclusive</span>
           </div>
           <div class="total-row grand-total">
-            <span>Total Payable / Paid:</span>
+            <span>${grandTotalLabel}</span>
             <span class="amount">${formattedPrice}</span>
           </div>
         </div>
@@ -735,8 +862,8 @@ export function generateOrderInvoiceHtml(order) {
 
         <div class="bakery-seal">
           <div class="seal-badge">AUTHENTICATED BAKE</div>
-          <p><strong>Pastry Paws </strong></p>
-          <p> </p>
+          <p><strong>Pastry Paws Studio Kitchen</strong></p>
+          <p>Certified Artisanal Confectionery</p>
         </div>
       </div>
 
