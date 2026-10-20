@@ -102,7 +102,7 @@ export function generateOrderInvoiceHtml(order) {
     : (isPaid ? 'Total Paid (Verified UPI):' : 'Total Payable:');
 
   // Live tracking URL encoded in QR Code
-  const trackingUrl = `https://pastrypaws.com/track-order?phone=${encodeURIComponent(
+  const trackingUrl = `https://pastrypaws.in/track-order?phone=${encodeURIComponent(
     order.customerPhone || ''
   )}`;
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=110x110&margin=2&data=${encodeURIComponent(
@@ -728,7 +728,7 @@ export function generateOrderInvoiceHtml(order) {
             <p>Freshly baked from our studio kitchen</p>
             <p>WhatsApp & Phone: +91 ${paymentConfig.phoneNumber || brandConfig.contact?.phone || '9790983844'} • Email: ${brandConfig.contact?.email || 'pastrypaws012@gmail.com'}</p>
             <p>Official Bakery UPI: <strong>${paymentConfig.upiId || brandConfig.payment?.upiId || '9790983844@okaxis'}</strong></p>
-            <p>Website: pastrypaws.com</p>
+            <p>Website: pastrypaws.in</p>
           </div>
         </div>
 
