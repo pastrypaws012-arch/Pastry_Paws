@@ -55,7 +55,7 @@ export const brandConfig = {
       },
       {
         title: "Celebration Specials",
-        description: "Every birthday celebration cake comes with our signature complimentary mini cookies.",
+        description: "Custom handcrafted cakes and treats tailored to make every celebration special.",
       },
     ],
   },

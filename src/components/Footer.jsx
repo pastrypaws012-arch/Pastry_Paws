@@ -41,7 +41,7 @@ export function Footer() {
             </p>
 
             <p className="text-xs text-[#FDEADA]/70 leading-relaxed max-w-md pt-2">
-              Freshly baked with love by Pastry Paws. Cakes, brownies, gooey choco lava, cupcakes, and cookies crafted to make every celebration sweet. Birthday celebration cakes include complimentary mini cookies!
+              Freshly baked with love by Pastry Paws. Cakes, brownies, gooey choco lava, cupcakes, and cookies crafted to make every celebration sweet and memorable.
             </p>
           </div>
 

@@ -60,7 +60,7 @@ export function Hero() {
               transition={{ duration: 0.7, delay: 0.4 }}
               className="mt-5 text-base sm:text-lg text-[#7C3F27] leading-relaxed max-w-lg font-normal"
             >
-              Cakes, pastries, fudgy brownies, cupcakes, and gooey choco lava baked with love by Pastry Paws. Every birthday cake includes complimentary mini cookies!
+              Cakes, pastries, fudgy brownies, cupcakes, and gooey choco lava baked with love by Pastry Paws. Handcrafted fresh to order for every sweet moment!
             </motion.p>
 
             {/* Call to Actions */}
@@ -87,7 +87,7 @@ export function Hero() {
             >
               <div className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#7C3F27]" />
-                <span>Complimentary mini cookies</span>
+                <span>100% Handcrafted</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#7C3F27]" />

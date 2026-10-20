@@ -3694,7 +3694,7 @@ export function AdminPage() {
                       type="text"
                       value={offeringForm.accent}
                       onChange={(e) => setOfferingForm({ ...offeringForm, accent: e.target.value })}
-                      placeholder="e.g. Complimentary Mini Cookies"
+                      placeholder="e.g. Freshly Baked to Order"
                       className="w-full px-3 py-2 text-xs rounded-xl border border-[#D29C83]/40 bg-[#FFF9F3] text-[#411C10] focus:outline-none"
                     />
                   </div>
