@@ -16,7 +16,7 @@ export const brandConfig = {
     instagramUrl: "https://www.instagram.com/pastry_paws_06/",
     email: "pastry.paws012@gmail.com",
     phone: "+91 9790983844",
-    serviceArea: "Freshly baked & hand-delivered locally. Custom orders require advance notice.",
+    serviceArea: "Studio Self-Pickup from Avadi or customer-arranged parcel service (Dunzo / Porter / Swiggy Genie). We do not provide direct home delivery.",
     hours: "Mon –  sun: 24 Hr Available (Freshly baked to order)",
     pickupLocation: "Home Bakery Studio • Pastry Paws",
     address: "Avadi, Chennai, Tamil Nadu 600054",

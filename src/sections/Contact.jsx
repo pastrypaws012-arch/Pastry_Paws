@@ -109,7 +109,7 @@ export function Contact() {
                   </div>
                   <div>
                     <h4 className="text-xs uppercase tracking-wider font-semibold text-[#F7B6A7]">
-                      Service &amp; Hand-Delivery Area
+                      Pickup &amp; Delivery Policy
                     </h4>
                     <p className="text-sm text-[#FDEADA]/90 mt-0.5">
                       {brandConfig.contact.serviceArea}

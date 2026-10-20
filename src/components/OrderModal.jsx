@@ -25,6 +25,9 @@ import {
   Image as ImageIcon,
   RefreshCw,
   Sparkles,
+  Store,
+  Bike,
+  Info,
 } from 'lucide-react';
 import { brandConfig } from '../data/brand';
 import { API_BASE_URL } from '../utils/api';
@@ -177,7 +180,7 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
     }
 
     if (!formData.address.trim() || formData.address.trim().length < 5) {
-      setFormError('Please enter your complete delivery address (street, area, landmark).');
+      setFormError('Please enter your delivery address / location.');
       return false;
     }
 
@@ -570,6 +573,21 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
                         className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#D29C83]/40 bg-[#FFF9F3] text-[#411C10] placeholder:text-[#A66D54]/50 focus:outline-none focus:border-[#7C3F27]"
                       />
                     </div>
+
+                    {/* Important Pickup & Delivery Policy Notice */}
+                    <div className="mt-2.5 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-950 space-y-1.5">
+                      <div className="flex items-center gap-1.5 font-bold text-amber-900 text-xs">
+                        <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" />
+                        <span>Important Pickup &amp; Delivery Policy:</span>
+                      </div>
+                      <p className="text-[11px] text-[#7C3F27] leading-relaxed">
+                        Pastry Paws is a boutique home bakery. <strong>We do not provide direct home delivery.</strong>
+                      </p>
+                      <div className="text-[11px] text-[#411C10] space-y-0.5 pt-0.5">
+                        <p>• <strong>Self-Pickup:</strong> You can come directly to our Avadi studio to collect your order.</p>
+                        <p>• <strong>Parcel / Courier Service:</strong> Or you can arrange your own delivery person / courier service (such as Dunzo, Porter, Swiggy Genie, or Rapido) to pick it up from our studio and deliver to you.</p>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -696,7 +714,7 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
                           💵 Cash on Delivery
                         </span>
                         <span className="text-[10px] text-[#7C3F27] block leading-tight mt-0.5">
-                          Pay in cash upon doorstep delivery
+                          Pay in cash upon pickup / delivery
                         </span>
                       </div>
                     </button>
@@ -706,7 +724,7 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
                     <div className="p-3 rounded-xl bg-amber-50 border border-amber-300 text-[11px] text-amber-950 flex items-start gap-2">
                       <span className="text-sm shrink-0">💵</span>
                       <p className="leading-relaxed">
-                        <strong>Cash on Delivery:</strong> No advance payment, QR scan, or screenshot upload required. You can directly place your order now and pay <strong>{currentTier.price}</strong> in cash upon delivery!
+                        <strong>Cash on Delivery:</strong> No advance payment, QR scan, or screenshot upload required. You can directly place your order now and pay <strong>{currentTier.price}</strong> in cash upon pickup or delivery!
                       </p>
                     </div>
                   )}
