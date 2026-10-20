@@ -34,6 +34,7 @@ import {
   ShieldCheck,
   Maximize2,
   QrCode,
+  Clock,
 } from 'lucide-react';
 import { brandConfig } from '../data/brand';
 import { API_BASE_URL } from '../utils/api';
