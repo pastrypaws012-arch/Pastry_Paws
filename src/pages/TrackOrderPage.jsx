@@ -170,14 +170,16 @@ export function TrackOrderPage() {
 
         // Payment Filter
         if (trackerPaymentFilter !== 'all') {
-          if (trackerPaymentFilter === 'pending_verification') {
-            if (order.paymentStatus !== 'pending_verification' && order.paymentStatus) return false;
+          if (trackerPaymentFilter === 'cod') {
+            if (order.paymentMethod !== 'Cash on Delivery' && order.paymentMethod !== 'COD' && order.paymentStatus !== 'cod_pending') return false;
+          } else if (trackerPaymentFilter === 'pending_verification') {
+            if ((order.paymentStatus !== 'pending_verification' && order.paymentStatus) || order.paymentMethod === 'Cash on Delivery') return false;
           } else if (order.paymentStatus !== trackerPaymentFilter) {
             return false;
           }
         }
 
-        // Search Query (Order ID, Item Title, Size, Transaction ID / UTR, Address)
+        // Search Query (Order ID, Item Title, Size, Transaction ID / UTR, Address, Payment Method)
         if (trackerSearchQuery.trim()) {
           const q = trackerSearchQuery.toLowerCase().trim();
           const matchId = (order.orderId || '').toLowerCase().includes(q) || (order._id || '').toLowerCase().includes(q);
@@ -185,7 +187,8 @@ export function TrackOrderPage() {
           const matchSize = (order.selectedSize || '').toLowerCase().includes(q);
           const matchUtr = (order.transactionId || '').toLowerCase().includes(q);
           const matchAddr = (order.deliveryAddress || '').toLowerCase().includes(q);
-          if (!matchId && !matchTitle && !matchSize && !matchUtr && !matchAddr) {
+          const matchMethod = (order.paymentMethod || '').toLowerCase().includes(q);
+          if (!matchId && !matchTitle && !matchSize && !matchUtr && !matchAddr && !matchMethod) {
             return false;
           }
         }
@@ -1046,89 +1049,133 @@ export function TrackOrderPage() {
                       </div>
                     </div>
 
-                    {/* GOOGLE PAY / UPI PAYMENT VERIFICATION & PROOF CARD */}
-                    <div className="mt-3.5 p-3.5 rounded-2xl bg-[#FEEDDD]/40 border border-[#D29C83]/30 text-xs space-y-2.5">
-                      <div className="flex items-center justify-between gap-2 flex-wrap">
-                        <div className="flex items-center gap-1.5">
-                          <span className="w-5 h-5 rounded-lg bg-[#FEEDDD] text-[#7C3F27] flex items-center justify-center font-bold text-[11px] border border-[#D29C83]/30">
-                            ₹
-                          </span>
-                          <span className="font-bold text-[#411C10]">
-                            Google Pay / UPI Payment
-                          </span>
-                        </div>
-
-                        {/* Verification Badge */}
-                        {order.paymentStatus === 'verified' ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                            <span>Payment Verified</span>
-                          </span>
-                        ) : order.paymentStatus === 'rejected' ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
-                            <XCircle className="w-3.5 h-3.5 text-rose-600" />
-                            <span>Payment Rejected</span>
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
-                            <Clock className="w-3.5 h-3.5 text-amber-600" />
-                            <span>Verification Pending</span>
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Transaction ID & Status message */}
-                      {order.paymentStatus === 'verified' ? (
-                        <div className="p-2.5 bg-emerald-50/80 rounded-xl border border-emerald-200 text-emerald-900 space-y-1">
-                          <p className="font-medium text-xs">
-                            ✓ Your payment has been verified by the studio! Preparation is proceeding.
-                          </p>
-                          {order.transactionId && (
-                            <p className="text-[11px] text-emerald-700">
-                              UPI Reference / UTR: <strong className="font-mono">{order.transactionId}</strong>
-                            </p>
-                          )}
-                        </div>
-                      ) : order.paymentStatus === 'rejected' ? (
-                        <div className="p-3 bg-rose-50 rounded-xl border border-rose-300 text-rose-950 space-y-2">
-                          <div className="flex items-center gap-1.5 font-bold text-rose-800">
-                            <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
-                            <span>Action Needed: Payment Verification Issue</span>
+                    {/* PAYMENT DETAILS CARD (UPI vs CASH ON DELIVERY) */}
+                    {order.paymentMethod === 'Cash on Delivery' ? (
+                      <div className="mt-3.5 p-3.5 rounded-2xl bg-amber-50/70 border border-amber-300 text-xs space-y-2.5">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-5 h-5 rounded-lg bg-amber-100 text-amber-900 flex items-center justify-center font-bold text-[11px] border border-amber-300">
+                              💵
+                            </span>
+                            <span className="font-bold text-[#411C10]">
+                              Cash on Delivery (COD)
+                            </span>
                           </div>
-                          <p className="text-xs text-[#411C10]">
-                            <span className="text-[#A66D54]">Studio notice:</span>{' '}
-                            <strong className="text-rose-900">"{order.paymentRejectedReason || 'Could not verify payment with bank statement.'}"</strong>
-                          </p>
-                          <p className="text-[11px] text-[#7C3F27]">
-                            Please re-check your payment app receipt and upload the clear payment screenshot and genuine 12-digit UTR reference number.
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setReuploadingOrder(order);
-                              setNewScreenshot('');
-                              setNewScreenshotPublicId('');
-                              setNewTransactionId(order.transactionId || '');
-                              setReuploadError('');
-                            }}
-                            className="inline-flex items-center gap-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold py-2 px-3.5 rounded-xl shadow-xs transition-colors cursor-pointer"
-                          >
-                            <Upload className="w-3.5 h-3.5" />
-                            <span>Re-upload Payment Proof</span>
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="p-2.5 bg-amber-50/80 rounded-xl border border-amber-200 text-amber-950 space-y-1">
-                          <p className="font-medium text-xs">
-                            Your UPI payment proof is under review by our studio. We will confirm your order as soon as the transaction reflects in our account.
-                          </p>
-                          {order.transactionId && (
-                            <p className="text-[11px] text-amber-800">
-                              Submitted UTR: <strong className="font-mono">{order.transactionId}</strong>
-                            </p>
+
+                          {/* COD Status Badge */}
+                          {order.paymentStatus === 'verified' || order.status === 'delivered' ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>Cash Collected</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                              <Clock className="w-3.5 h-3.5 text-amber-700" />
+                              <span>Pay on Delivery ({order.price})</span>
+                            </span>
                           )}
                         </div>
-                      )}
+
+                        <div className="p-2.5 bg-[#FFF9F3] rounded-xl border border-amber-200 text-[#411C10] space-y-1">
+                          {order.paymentStatus === 'verified' || order.status === 'delivered' ? (
+                            <p className="font-medium text-xs text-emerald-900">
+                              ✓ Cash payment of <strong>{order.price}</strong> was collected upon delivery. Thank you!
+                            </p>
+                          ) : (
+                            <>
+                              <p className="font-medium text-xs text-amber-950">
+                                💵 Please keep exact cash of <strong>{order.price}</strong> ready when your delivery arrives on {order.deliveryDate || 'the scheduled date'}.
+                              </p>
+                              <p className="text-[11px] text-[#7C3F27]">
+                                No advance transaction ID or screenshot proof required.
+                              </p>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="mt-3.5 p-3.5 rounded-2xl bg-[#FEEDDD]/40 border border-[#D29C83]/30 text-xs space-y-2.5">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-5 h-5 rounded-lg bg-[#FEEDDD] text-[#7C3F27] flex items-center justify-center font-bold text-[11px] border border-[#D29C83]/30">
+                              ₹
+                            </span>
+                            <span className="font-bold text-[#411C10]">
+                              Google Pay / UPI Payment
+                            </span>
+                          </div>
+
+                          {/* Verification Badge */}
+                          {order.paymentStatus === 'verified' ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>Payment Verified</span>
+                            </span>
+                          ) : order.paymentStatus === 'rejected' ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
+                              <XCircle className="w-3.5 h-3.5 text-rose-600" />
+                              <span>Payment Rejected</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                              <Clock className="w-3.5 h-3.5 text-amber-600" />
+                              <span>Verification Pending</span>
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Transaction ID & Status message */}
+                        {order.paymentStatus === 'verified' ? (
+                          <div className="p-2.5 bg-emerald-50/80 rounded-xl border border-emerald-200 text-emerald-900 space-y-1">
+                            <p className="font-medium text-xs">
+                              ✓ Your payment has been verified by the studio! Preparation is proceeding.
+                            </p>
+                            {order.transactionId && (
+                              <p className="text-[11px] text-emerald-700">
+                                UPI Reference / UTR: <strong className="font-mono">{order.transactionId}</strong>
+                              </p>
+                            )}
+                          </div>
+                        ) : order.paymentStatus === 'rejected' ? (
+                          <div className="p-3 bg-rose-50 rounded-xl border border-rose-300 text-rose-950 space-y-2">
+                            <div className="flex items-center gap-1.5 font-bold text-rose-800">
+                              <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                              <span>Action Needed: Payment Verification Issue</span>
+                            </div>
+                            <p className="text-xs text-[#411C10]">
+                              <span className="text-[#A66D54]">Studio notice:</span>{' '}
+                              <strong className="text-rose-900">"{order.paymentRejectedReason || 'Could not verify payment with bank statement.'}"</strong>
+                            </p>
+                            <p className="text-[11px] text-[#7C3F27]">
+                              Please re-check your payment app receipt and upload the clear payment screenshot and genuine 12-digit UTR reference number.
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setReuploadingOrder(order);
+                                setNewScreenshot('');
+                                setNewScreenshotPublicId('');
+                                setNewTransactionId(order.transactionId || '');
+                                setReuploadError('');
+                              }}
+                              className="inline-flex items-center gap-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold py-2 px-3.5 rounded-xl shadow-xs transition-colors cursor-pointer"
+                            >
+                              <Upload className="w-3.5 h-3.5" />
+                              <span>Re-upload Payment Proof</span>
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="p-2.5 bg-amber-50/80 rounded-xl border border-amber-200 text-amber-950 space-y-1">
+                            <p className="font-medium text-xs">
+                              Your UPI payment proof is under review by our studio. We will confirm your order as soon as the transaction reflects in our account.
+                            </p>
+                            {order.transactionId && (
+                              <p className="text-[11px] text-amber-800">
+                                Submitted UTR: <strong className="font-mono">{order.transactionId}</strong>
+                              </p>
+                            )}
+                          </div>
+                        )}
 
                       {/* Customer can view their uploaded screenshot */}
                       {order.paymentScreenshot && (
@@ -1145,8 +1192,9 @@ export function TrackOrderPage() {
                         </div>
                       )}
                     </div>
+                  )}
 
-                    {/* Cancellation Request Pending Review Banner */}
+                  {/* Cancellation Request Pending Review Banner */}
                       {order.cancellationStatus === 'pending' && (
                         <div className="mt-3 p-3.5 rounded-2xl bg-amber-50 border border-amber-300 text-xs space-y-1.5">
                           <div className="flex items-center gap-1.5 font-bold text-amber-900">

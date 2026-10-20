@@ -66,15 +66,18 @@ export function generateOrderInvoiceHtml(order) {
   const formattedPrice = `₹${numericPrice.toFixed(2)}`;
 
   // Payment Status Styling
-  const paymentStatus = order.paymentStatus || 'pending_verification';
-  const isPaid = paymentStatus === 'verified';
+  const isCOD = order.paymentMethod === 'Cash on Delivery' || order.paymentMethod === 'COD';
+  const paymentStatus = order.paymentStatus || (isCOD ? 'cod_pending' : 'pending_verification');
+  const isPaid = paymentStatus === 'verified' || order.status === 'delivered';
   const isRejected = paymentStatus === 'rejected';
 
-  const statusBadgeText = isPaid
-    ? 'PAID & VERIFIED (UPI)'
-    : isRejected
-      ? 'VERIFICATION REJECTED'
-      : 'PAYMENT UNDER VERIFICATION';
+  const statusBadgeText = isCOD
+    ? (isPaid ? 'PAID (CASH ON DELIVERY)' : 'CASH ON DELIVERY (PENDING)')
+    : isPaid
+      ? 'PAID & VERIFIED (UPI)'
+      : isRejected
+        ? 'VERIFICATION REJECTED'
+        : 'PAYMENT UNDER VERIFICATION';
 
   const statusBadgeColor = isPaid
     ? '#1B5E20'
@@ -624,19 +627,19 @@ export function generateOrderInvoiceHtml(order) {
         </div>
 
         <div class="payment-highlight-item">
-          <span class="payment-highlight-label">UPI Reference / UTR Number</span>
-          <span class="payment-highlight-value utr">${order.transactionId || 'PENDING VERIFICATION'}</span>
+          <span class="payment-highlight-label">${isCOD ? 'Payment Terms' : 'UPI Reference / UTR Number'}</span>
+          <span class="payment-highlight-value utr">${isCOD ? 'Pay in cash upon delivery' : (order.transactionId || 'PENDING VERIFICATION')}</span>
         </div>
 
         <div class="payment-highlight-item">
           <span class="payment-highlight-label">Payment Status</span>
           <span class="payment-highlight-value" style="color: ${statusBadgeColor};">
-            ${isPaid ? 'Verified & Received' : isRejected ? 'Rejected by Studio' : 'Under Review'}
+            ${isCOD ? (isPaid ? 'Cash Collected' : 'To Collect on Delivery') : (isPaid ? 'Verified & Received' : isRejected ? 'Rejected by Studio' : 'Under Review')}
           </span>
         </div>
 
         <div class="payment-highlight-item">
-          <span class="payment-highlight-label">Amount Paid</span>
+          <span class="payment-highlight-label">${isCOD && !isPaid ? 'Amount to Collect' : 'Amount Paid'}</span>
           <span class="payment-highlight-value" style="color: #7C3F27;">${formattedPrice}</span>
         </div>
       </div>

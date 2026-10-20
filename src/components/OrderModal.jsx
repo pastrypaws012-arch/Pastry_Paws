@@ -57,7 +57,8 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
     notes: '',
   });
 
-  // Step 2: Payment Details (UPI / Google Pay)
+  // Step 2: Payment Details (UPI / Google Pay vs Cash on Delivery)
+  const [paymentMethod, setPaymentMethod] = useState('UPI'); // 'UPI' | 'COD'
   const [paymentScreenshot, setPaymentScreenshot] = useState('');
   const [paymentScreenshotPublicId, setPaymentScreenshotPublicId] = useState('');
   const [isUploadingScreenshot, setIsUploadingScreenshot] = useState(false);
@@ -162,36 +163,97 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
     }
   };
 
-  // Advance from Step 1 (Details) to Step 2 (UPI Payment)
-  const handleProceedToPayment = (e) => {
-    e.preventDefault();
-    setFormError('');
-
+  // Validate details form inputs
+  const validateCustomerDetails = () => {
     if (!formData.name.trim() || formData.name.trim().length < 2) {
       setFormError('Please enter your full name (at least 2 characters).');
-      return;
+      return false;
     }
 
     const cleanPhone = formData.phone.replace(/\D/g, '');
     if (cleanPhone.length !== 10) {
       setFormError('Please enter a valid 10-digit mobile phone number.');
-      return;
+      return false;
     }
 
     if (!formData.address.trim() || formData.address.trim().length < 5) {
       setFormError('Please enter your complete delivery address (street, area, landmark).');
-      return;
+      return false;
     }
 
     if (!formData.deliveryDate) {
       setFormError('Please select your preferred delivery date.');
-      return;
+      return false;
     }
 
-    setModalStep('payment');
+    return true;
   };
 
-  // Final Order Submission with Payment Proof & Anti-Fraud Checks
+  // Generic Order Submission Engine
+  const submitOrder = async (method = 'Google Pay / UPI', screenshot = '', screenshotPublicId = '', txId = 'COD') => {
+    setIsSubmitting(true);
+    setFormError('');
+
+    const isCOD = method === 'Cash on Delivery';
+
+    const orderPayload = {
+      customerName: formData.name.trim(),
+      customerPhone: formData.phone.trim(),
+      deliveryAddress: formData.address.trim(),
+      deliveryDate: formData.deliveryDate,
+      deliveryTime: formData.deliveryTime,
+      notes: formData.notes ? formData.notes.trim() : '',
+      itemTitle: item.title,
+      category: item.category || '',
+      selectedSize: currentTier.size,
+      price: currentTier.price,
+      itemImage: item.image,
+      paymentMethod: method,
+      paymentScreenshot: isCOD ? '' : screenshot,
+      paymentScreenshotPublicId: isCOD ? '' : screenshotPublicId,
+      transactionId: isCOD ? 'COD' : txId,
+    };
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/orders`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderPayload),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success && data.data) {
+        setPlacedOrder(data.data);
+      } else {
+        setFormError(data.message || 'Unable to place order. Please check the details and try again.');
+      }
+    } catch {
+      // Offline fallback
+      setPlacedOrder({
+        orderId: `PP-${Date.now().toString().slice(-6)}`,
+        ...orderPayload,
+        paymentStatus: isCOD ? 'cod_pending' : 'pending_verification',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Step 1: Handle Proceed (Cash on Delivery places order directly, UPI advances to Step 2)
+  const handleProceedToPayment = (e) => {
+    e.preventDefault();
+    setFormError('');
+
+    if (!validateCustomerDetails()) return;
+
+    if (paymentMethod === 'COD') {
+      submitOrder('Cash on Delivery');
+    } else {
+      setModalStep('payment');
+    }
+  };
+
+  // Step 2: Final Order Submission with UPI Payment Proof
   const handleFinalOrderSubmit = async (e) => {
     e.preventDefault();
     setFormError('');
@@ -207,55 +269,13 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
       return;
     }
 
-    setIsSubmitting(true);
-
-    const orderPayload = {
-      customerName: formData.name.trim(),
-      customerPhone: formData.phone.trim(),
-      deliveryAddress: formData.address.trim(),
-      deliveryDate: formData.deliveryDate,
-      deliveryTime: formData.deliveryTime,
-      notes: formData.notes ? formData.notes.trim() : '',
-      itemTitle: item.title,
-      category: item.category || '',
-      selectedSize: currentTier.size,
-      price: currentTier.price,
-      itemImage: item.image,
-      paymentMethod: 'Google Pay / UPI',
-      paymentScreenshot: paymentScreenshot,
-      paymentScreenshotPublicId: paymentScreenshotPublicId,
-      transactionId: cleanTxId,
-    };
-
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/orders`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(orderPayload),
-      });
-
-      const data = await res.json();
-      if (res.ok && data.success && data.data) {
-        setPlacedOrder(data.data);
-      } else {
-        // Show specific anti-fraud or validation error message
-        setFormError(data.message || 'Unable to place order. Please check the details and try again.');
-      }
-    } catch {
-      // Offline fallback
-      setPlacedOrder({
-        orderId: `PP-${Date.now().toString().slice(-6)}`,
-        ...orderPayload,
-        paymentStatus: 'pending_verification',
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
+    submitOrder('Google Pay / UPI', paymentScreenshot, paymentScreenshotPublicId, cleanTxId);
   };
 
   const handleResetAndClose = () => {
     setPlacedOrder(null);
     setModalStep('details');
+    setPaymentMethod('UPI');
     setFormData({
       name: '',
       phone: '',
@@ -271,10 +291,12 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
     onClose();
   };
 
-  // Pre-filled WhatsApp link with complete receipt & payment verification details
+  // Pre-filled WhatsApp link with complete receipt & payment details
   const whatsappReceiptUrl = placedOrder
     ? `https://wa.me/${paymentWhatsapp}?text=${encodeURIComponent(
-      `Hello Pastry Paws! I just placed an order with UPI payment proof:\n\n*Order ID:* ${placedOrder.orderId}\n*Item:* ${placedOrder.itemTitle} (${placedOrder.selectedSize})\n*Amount:* ${placedOrder.price}\n*Customer:* ${placedOrder.customerName} (${placedOrder.customerPhone})\n*Address:* ${placedOrder.deliveryAddress}\n*Delivery Date:* ${placedOrder.deliveryDate} (${placedOrder.deliveryTime})\n*UPI UTR / Ref No:* ${placedOrder.transactionId}\n*Payment Status:* Verification Pending\n\nPlease verify my payment and confirm. Thank you!`
+      placedOrder.paymentMethod === 'Cash on Delivery'
+        ? `Hello Pastry Paws! I just placed an order with *Cash on Delivery*:\n\n*Order ID:* ${placedOrder.orderId}\n*Item:* ${placedOrder.itemTitle} (${placedOrder.selectedSize})\n*Amount:* ${placedOrder.price}\n*Customer:* ${placedOrder.customerName} (${placedOrder.customerPhone})\n*Address:* ${placedOrder.deliveryAddress}\n*Delivery Date:* ${placedOrder.deliveryDate} (${placedOrder.deliveryTime})\n*Payment Method:* Cash on Delivery (Pay ${placedOrder.price} in cash upon delivery)\n\nPlease confirm my order. Thank you!`
+        : `Hello Pastry Paws! I just placed an order with UPI payment proof:\n\n*Order ID:* ${placedOrder.orderId}\n*Item:* ${placedOrder.itemTitle} (${placedOrder.selectedSize})\n*Amount:* ${placedOrder.price}\n*Customer:* ${placedOrder.customerName} (${placedOrder.customerPhone})\n*Address:* ${placedOrder.deliveryAddress}\n*Delivery Date:* ${placedOrder.deliveryDate} (${placedOrder.deliveryTime})\n*UPI UTR / Ref No:* ${placedOrder.transactionId}\n*Payment Status:* Verification Pending\n\nPlease verify my payment and confirm. Thank you!`
     )}`
     : '#';
 
@@ -307,17 +329,21 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
               <div>
                 <h3 className="font-serif text-lg sm:text-xl text-[#411C10] font-normal leading-tight">
                   {placedOrder
-                    ? 'Order Submitted!'
+                    ? placedOrder.paymentMethod === 'Cash on Delivery'
+                      ? 'Order Placed (Cash on Delivery)!'
+                      : 'Order Submitted!'
                     : modalStep === 'payment'
                       ? 'Step 2: Pay via Google Pay / UPI'
-                      : 'Step 1: Delivery Details'}
+                      : 'Step 1: Order & Delivery Details'}
                 </h3>
                 <p className="text-[11px] text-[#7C3F27]">
                   {placedOrder
-                    ? 'Payment proof received • Studio verification in progress'
+                    ? placedOrder.paymentMethod === 'Cash on Delivery'
+                      ? 'Order registered • Pay with cash upon delivery'
+                      : 'Payment proof received • Studio verification in progress'
                     : modalStep === 'payment'
                       ? 'Scan QR or copy UPI ID, then upload your screenshot'
-                      : 'Freshly baked to order with pure artisan ingredients'}
+                      : 'Choose your payment method & delivery preferences'}
                 </p>
               </div>
             </div>
@@ -346,20 +372,33 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
                     Thank You, {placedOrder.customerName}!
                   </h4>
                   <p className="text-xs text-[#7C3F27] mt-1">
-                    Your order for <strong>{placedOrder.itemTitle}</strong> has been registered with payment proof.
+                    Your order for <strong>{placedOrder.itemTitle}</strong> has been registered
+                    {placedOrder.paymentMethod === 'Cash on Delivery' ? ' with Cash on Delivery.' : ' with payment proof.'}
                   </p>
                 </div>
 
                 {/* Status Notice */}
-                <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-300 text-amber-950 text-left space-y-1">
-                  <div className="flex items-center gap-2 font-bold text-xs text-amber-900">
-                    <Clock className="w-4 h-4 text-amber-700 shrink-0" />
-                    <span>Payment Verification Pending</span>
+                {placedOrder.paymentMethod === 'Cash on Delivery' ? (
+                  <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-300 text-amber-950 text-left space-y-1">
+                    <div className="flex items-center gap-2 font-bold text-xs text-amber-900">
+                      <span className="text-sm">💵</span>
+                      <span>Cash on Delivery Confirmed</span>
+                    </div>
+                    <p className="text-[11px] text-amber-900/90 leading-relaxed">
+                      Your order has been registered! Please keep exact change of <strong>{placedOrder.price}</strong> ready in cash upon delivery on <strong>{placedOrder.deliveryDate} ({placedOrder.deliveryTime})</strong>. No advance payment or screenshot needed.
+                    </p>
                   </div>
-                  <p className="text-[11px] text-amber-900/90 leading-relaxed">
-                    We received your payment screenshot and <strong>UTR #{placedOrder.transactionId}</strong>. Our studio is verifying this transaction with our bank statement before moving your order to the oven!
-                  </p>
-                </div>
+                ) : (
+                  <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-300 text-amber-950 text-left space-y-1">
+                    <div className="flex items-center gap-2 font-bold text-xs text-amber-900">
+                      <Clock className="w-4 h-4 text-amber-700 shrink-0" />
+                      <span>Payment Verification Pending</span>
+                    </div>
+                    <p className="text-[11px] text-amber-900/90 leading-relaxed">
+                      We received your payment screenshot and <strong>UTR #{placedOrder.transactionId}</strong>. Our studio is verifying this transaction with our bank statement before moving your order to the oven!
+                    </p>
+                  </div>
+                )}
 
                 {/* Order Summary Receipt */}
                 <div className="bg-[#FEEDDD]/50 rounded-2xl p-4 border border-[#D29C83]/25 text-left text-xs space-y-2">
@@ -368,15 +407,25 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
                     <span className="font-semibold text-[#411C10]">{placedOrder.itemTitle} ({placedOrder.selectedSize})</span>
                   </div>
                   <div className="flex justify-between pb-2 border-b border-[#D29C83]/20">
-                    <span className="text-[#A66D54]">Amount Paid:</span>
-                    <span className="font-bold text-[#7C3F27] text-sm">{placedOrder.price}</span>
-                  </div>
-                  <div className="flex justify-between pb-2 border-b border-[#D29C83]/20">
-                    <span className="text-[#A66D54]">UPI Transaction ID / UTR:</span>
-                    <span className="font-mono font-bold text-[#411C10] bg-[#FFF9F3] px-2 py-0.5 rounded border border-[#D29C83]/30">
-                      {placedOrder.transactionId}
+                    <span className="text-[#A66D54]">Payment Mode:</span>
+                    <span className="font-semibold text-[#411C10]">
+                      {placedOrder.paymentMethod === 'Cash on Delivery' ? '💵 Cash on Delivery (Pay on arrival)' : '📱 Google Pay / UPI'}
                     </span>
                   </div>
+                  <div className="flex justify-between pb-2 border-b border-[#D29C83]/20">
+                    <span className="text-[#A66D54]">
+                      {placedOrder.paymentMethod === 'Cash on Delivery' ? 'Amount to Pay on Delivery:' : 'Amount Paid:'}
+                    </span>
+                    <span className="font-bold text-[#7C3F27] text-sm">{placedOrder.price}</span>
+                  </div>
+                  {placedOrder.paymentMethod !== 'Cash on Delivery' && (
+                    <div className="flex justify-between pb-2 border-b border-[#D29C83]/20">
+                      <span className="text-[#A66D54]">UPI Transaction ID / UTR:</span>
+                      <span className="font-mono font-bold text-[#411C10] bg-[#FFF9F3] px-2 py-0.5 rounded border border-[#D29C83]/30">
+                        {placedOrder.transactionId}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex justify-between pb-2 border-b border-[#D29C83]/20">
                     <span className="text-[#A66D54]">Delivery Target:</span>
                     <span className="text-[#411C10]">{placedOrder.deliveryDate} ({placedOrder.deliveryTime})</span>
@@ -395,7 +444,11 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
                     rel="noopener noreferrer"
                     className="w-full inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold transition-all shadow-md active:scale-[0.98]"
                   >
-                    <span>Send Order & Payment Receipt via WhatsApp</span>
+                    <span>
+                      {placedOrder.paymentMethod === 'Cash on Delivery'
+                        ? 'Send Order Details via WhatsApp'
+                        : 'Send Order & Payment Receipt via WhatsApp'}
+                    </span>
                   </a>
 
                   <div className="flex flex-col sm:flex-row gap-2.5">
@@ -574,35 +627,156 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
                   </div>
                 </div>
 
-                {/* Continue to Payment Button */}
+                {/* Payment Option Selector */}
+                <div className="pt-2 border-t border-[#D29C83]/30 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold text-[#411C10]">
+                      Choose Payment Method <span className="text-rose-500">*</span>
+                    </label>
+                    <span className="text-[10px] text-[#A66D54]">Select how you wish to pay</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {/* Option 1: UPI / Online */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPaymentMethod('UPI');
+                        if (formError) setFormError('');
+                      }}
+                      className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex items-start gap-2.5 ${
+                        paymentMethod === 'UPI'
+                          ? 'bg-[#FEEDDD] border-[#7C3F27] shadow-xs ring-1 ring-[#7C3F27]'
+                          : 'bg-[#FFF9F3] border-[#D29C83]/40 hover:bg-[#FEEDDD]/40'
+                      }`}
+                    >
+                      <div
+                        className={`w-5 h-5 rounded-full border mt-0.5 flex items-center justify-center shrink-0 ${
+                          paymentMethod === 'UPI'
+                            ? 'border-[#7C3F27] bg-[#7C3F27] text-white'
+                            : 'border-[#A66D54]/50'
+                        }`}
+                      >
+                        {paymentMethod === 'UPI' && <Check className="w-3 h-3 stroke-[3]" />}
+                      </div>
+                      <div className="min-w-0">
+                        <span className="text-xs font-bold text-[#411C10] block">
+                          📱 Google Pay / UPI
+                        </span>
+                        <span className="text-[10px] text-[#7C3F27] block leading-tight mt-0.5">
+                          Scan QR, pay online & upload screenshot
+                        </span>
+                      </div>
+                    </button>
+
+                    {/* Option 2: Cash on Delivery */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPaymentMethod('COD');
+                        if (formError) setFormError('');
+                      }}
+                      className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex items-start gap-2.5 ${
+                        paymentMethod === 'COD'
+                          ? 'bg-[#FEEDDD] border-[#7C3F27] shadow-xs ring-1 ring-[#7C3F27]'
+                          : 'bg-[#FFF9F3] border-[#D29C83]/40 hover:bg-[#FEEDDD]/40'
+                      }`}
+                    >
+                      <div
+                        className={`w-5 h-5 rounded-full border mt-0.5 flex items-center justify-center shrink-0 ${
+                          paymentMethod === 'COD'
+                            ? 'border-[#7C3F27] bg-[#7C3F27] text-white'
+                            : 'border-[#A66D54]/50'
+                        }`}
+                      >
+                        {paymentMethod === 'COD' && <Check className="w-3 h-3 stroke-[3]" />}
+                      </div>
+                      <div className="min-w-0">
+                        <span className="text-xs font-bold text-[#411C10] block">
+                          💵 Cash on Delivery
+                        </span>
+                        <span className="text-[10px] text-[#7C3F27] block leading-tight mt-0.5">
+                          Pay in cash upon doorstep delivery
+                        </span>
+                      </div>
+                    </button>
+                  </div>
+
+                  {paymentMethod === 'COD' && (
+                    <div className="p-3 rounded-xl bg-amber-50 border border-amber-300 text-[11px] text-amber-950 flex items-start gap-2">
+                      <span className="text-sm shrink-0">💵</span>
+                      <p className="leading-relaxed">
+                        <strong>Cash on Delivery:</strong> No advance payment, QR scan, or screenshot upload required. You can directly place your order now and pay <strong>{currentTier.price}</strong> in cash upon delivery!
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Continue / Submit Button */}
                 <div className="pt-2">
-                  <button
-                    type="submit"
-                    className="w-full inline-flex items-center justify-center gap-2 bg-[#7C3F27] text-[#FEEDDD] hover:bg-[#5E2B19] py-3 px-5 rounded-2xl text-sm font-semibold tracking-wide transition-all shadow-md hover:shadow-lg active:scale-[0.98] cursor-pointer"
-                  >
-                    <span>Continue to Payment ({currentTier.price})</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
+                  {paymentMethod === 'COD' ? (
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="w-full inline-flex items-center justify-center gap-2 bg-[#7C3F27] text-[#FEEDDD] hover:bg-[#5E2B19] py-3.5 px-5 rounded-2xl text-sm font-semibold tracking-wide transition-all shadow-md hover:shadow-lg active:scale-[0.98] cursor-pointer disabled:opacity-50"
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                          <span>Submitting Cash on Delivery Order...</span>
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="w-4 h-4 text-[#F9C8B5]" />
+                          <span>Place Order with Cash on Delivery ({currentTier.price})</span>
+                        </>
+                      )}
+                    </button>
+                  ) : (
+                    <button
+                      type="submit"
+                      className="w-full inline-flex items-center justify-center gap-2 bg-[#7C3F27] text-[#FEEDDD] hover:bg-[#5E2B19] py-3 px-5 rounded-2xl text-sm font-semibold tracking-wide transition-all shadow-md hover:shadow-lg active:scale-[0.98] cursor-pointer"
+                    >
+                      <span>Continue to UPI Payment ({currentTier.price})</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  )}
                   <p className="text-[10px] text-center text-[#A66D54] mt-2">
-                    Next: Pay with Google Pay / UPI QR & upload payment receipt screenshot
+                    {paymentMethod === 'COD'
+                      ? 'Direct order placement • Zero upfront payment required'
+                      : 'Next: Pay with Google Pay / UPI QR & upload payment receipt screenshot'}
                   </p>
                 </div>
               </form>
             ) : (
               /* SCREEN 3: STEP 2 - GOOGLE PAY / UPI PAYMENT & PROOF UPLOAD */
               <form onSubmit={handleFinalOrderSubmit} className="space-y-4">
-                {/* Back to details button */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setModalStep('details');
-                    setFormError('');
-                  }}
-                  className="inline-flex items-center gap-1.5 text-xs text-[#7C3F27] hover:text-[#411C10] font-medium transition-colors cursor-pointer"
-                >
-                  <ArrowLeft className="w-3.5 h-3.5" />
-                  <span>Edit Delivery Details</span>
-                </button>
+                {/* Back to details button and COD switch */}
+                <div className="flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setModalStep('details');
+                      setFormError('');
+                    }}
+                    className="inline-flex items-center gap-1.5 text-xs text-[#7C3F27] hover:text-[#411C10] font-medium transition-colors cursor-pointer"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    <span>Edit Delivery Details</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPaymentMethod('COD');
+                      setModalStep('details');
+                      setFormError('');
+                    }}
+                    className="text-[11px] font-semibold text-[#7C3F27] hover:text-[#411C10] underline cursor-pointer"
+                  >
+                    Prefer Cash on Delivery?
+                  </button>
+                </div>
 
                 {/* Amount to pay summary card */}
                 <div className="bg-[#FEEDDD]/60 border border-[#D29C83]/40 rounded-2xl p-3.5 flex items-center justify-between">

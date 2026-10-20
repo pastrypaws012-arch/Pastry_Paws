@@ -930,8 +930,10 @@ export function AdminPage() {
       .filter((ord) => {
         // Payment filter
         if (ordersPaymentFilter !== 'all') {
-          if (ordersPaymentFilter === 'pending_verification') {
-            if (ord.paymentStatus !== 'pending_verification' && ord.paymentStatus) return false;
+          if (ordersPaymentFilter === 'cod') {
+            if (ord.paymentMethod !== 'Cash on Delivery' && ord.paymentMethod !== 'COD' && ord.paymentStatus !== 'cod_pending') return false;
+          } else if (ordersPaymentFilter === 'pending_verification') {
+            if ((ord.paymentStatus !== 'pending_verification' && ord.paymentStatus) || ord.paymentMethod === 'Cash on Delivery') return false;
           } else if (ord.paymentStatus !== ordersPaymentFilter) {
             return false;
           }
@@ -946,7 +948,7 @@ export function AdminPage() {
           }
         }
 
-        // Search Query (Order ID, Customer, Phone, Transaction ID / UTR, Item Title, Delivery Address)
+        // Search Query (Order ID, Customer, Phone, Transaction ID / UTR, Item Title, Delivery Address, Payment Method)
         if (ordersSearchQuery.trim()) {
           const q = ordersSearchQuery.toLowerCase().trim();
           const matchId = (ord.orderId || '').toLowerCase().includes(q) || (ord._id || '').toLowerCase().includes(q);
@@ -955,7 +957,8 @@ export function AdminPage() {
           const matchUtr = (ord.transactionId || '').toLowerCase().includes(q);
           const matchItem = (ord.itemTitle || '').toLowerCase().includes(q);
           const matchAddr = (ord.deliveryAddress || '').toLowerCase().includes(q);
-          if (!matchId && !matchCust && !matchPhone && !matchUtr && !matchItem && !matchAddr) {
+          const matchMethod = (ord.paymentMethod || '').toLowerCase().includes(q);
+          if (!matchId && !matchCust && !matchPhone && !matchUtr && !matchItem && !matchAddr && !matchMethod) {
             return false;
           }
         }
@@ -2071,6 +2074,20 @@ export function AdminPage() {
                 </button>
                 <button
                   type="button"
+                  onClick={() => setOrdersPaymentFilter('cod')}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                    ordersPaymentFilter === 'cod'
+                      ? 'bg-amber-600 text-white shadow-xs'
+                      : 'bg-amber-50 text-amber-800 border border-amber-300 hover:bg-amber-100'
+                  }`}
+                >
+                  <span>💵 Cash on Delivery</span>
+                  <span className="px-1.5 py-0.2 bg-white/20 rounded-full text-[10px]">
+                    {orders.filter((o) => o.paymentMethod === 'Cash on Delivery' || o.paymentMethod === 'COD' || o.paymentStatus === 'cod_pending').length}
+                  </span>
+                </button>
+                <button
+                  type="button"
                   onClick={() => setOrdersPaymentFilter('rejected')}
                   className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
                     ordersPaymentFilter === 'rejected'
@@ -2313,175 +2330,239 @@ export function AdminPage() {
                         )}
                       </div>
 
-                      {/* GOOGLE PAY / UPI PAYMENT PROOF & VERIFICATION CARD */}
-                      <div className="mt-3.5 p-3.5 rounded-2xl bg-[#FFFDF9] border border-[#D29C83]/40 shadow-2xs space-y-3">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-1.5">
-                            <span className="w-5 h-5 rounded-lg bg-[#FEEDDD] text-[#7C3F27] flex items-center justify-center font-bold text-[11px]">
-                              ₹
-                            </span>
-                            <span className="text-xs font-bold text-[#411C10]">
-                              UPI Payment Proof & Verification
-                            </span>
-                          </div>
-
-                          {/* Verification Badge */}
-                          {ord.paymentStatus === 'verified' ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                              <span>Verified</span>
-                            </span>
-                          ) : ord.paymentStatus === 'rejected' ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
-                              <XCircle className="w-3.5 h-3.5 text-rose-600" />
-                              <span>Rejected</span>
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300 animate-pulse">
-                              <Clock className="w-3.5 h-3.5 text-amber-600" />
-                              <span>Needs Review</span>
-                            </span>
-                          )}
-                        </div>
-
-                        {/* UTR & Copy Reference */}
-                        <div className="p-2.5 bg-[#FEEDDD]/50 rounded-xl border border-[#D29C83]/30 flex items-center justify-between gap-2">
-                          <div className="min-w-0">
-                            <span className="text-[10px] uppercase font-bold text-[#A66D54] tracking-wider block">
-                              UPI Transaction ID / UTR
-                            </span>
-                            <span className="font-mono text-xs sm:text-sm font-bold text-[#411C10] break-all select-all">
-                              {ord.transactionId || 'Not Provided'}
-                            </span>
-                          </div>
-                          {ord.transactionId && (
-                            <button
-                              type="button"
-                              onClick={() => handleCopyTxId(ord.transactionId)}
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#FFF9F3] hover:bg-[#FEEDDD] border border-[#D29C83]/40 text-[11px] font-semibold text-[#7C3F27] transition-colors cursor-pointer shrink-0"
-                              title="Copy UTR to verify against bank statement"
-                            >
-                              {copiedTxId === ord.transactionId ? (
-                                <>
-                                  <Check className="w-3.5 h-3.5 text-emerald-600" />
-                                  <span className="text-emerald-700">Copied</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Copy className="w-3.5 h-3.5" />
-                                  <span>Copy UTR</span>
-                                </>
-                              )}
-                            </button>
-                          )}
-                        </div>
-
-                        {/* Screenshot Thumbnail Preview */}
-                        {ord.paymentScreenshot ? (
-                          <div className="flex items-center gap-3">
-                            <div
-                              onClick={() => {
-                                setPreviewReceiptImage(ord.paymentScreenshot);
-                                setPreviewReceiptOrder(ord);
-                              }}
-                              className="relative group w-20 h-20 rounded-xl overflow-hidden border border-[#D29C83]/40 bg-[#2C1810] cursor-pointer shrink-0 shadow-2xs"
-                              title="Click to view full payment screenshot"
-                            >
-                              <img
-                                src={ord.paymentScreenshot}
-                                alt="Payment proof receipt"
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                              />
-                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
-                                <Maximize2 className="w-5 h-5 drop-shadow" />
-                              </div>
+                      {/* PAYMENT PROOF & VERIFICATION CARD (UPI vs CASH ON DELIVERY) */}
+                      {ord.paymentMethod === 'Cash on Delivery' ? (
+                        <div className="mt-3.5 p-3.5 rounded-2xl bg-amber-50/70 border border-amber-300 shadow-2xs space-y-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5">
+                              <span className="w-5 h-5 rounded-lg bg-amber-100 text-amber-900 flex items-center justify-center font-bold text-[11px] border border-amber-300">
+                                💵
+                              </span>
+                              <span className="text-xs font-bold text-[#411C10]">
+                                Cash on Delivery (COD)
+                              </span>
                             </div>
 
-                            <div className="flex-1 text-xs space-y-1">
-                              <p className="text-[#411C10] font-semibold flex items-center gap-1">
-                                <span>Receipt Screenshot</span>
-                              </p>
-                              <p className="text-[11px] text-[#7C3F27]">
-                                Order Total: <strong className="text-[#411C10]">{ord.price}</strong>
-                              </p>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setPreviewReceiptImage(ord.paymentScreenshot);
-                                  setPreviewReceiptOrder(ord);
-                                }}
-                                className="text-[11px] text-[#7C3F27] hover:text-[#411C10] font-semibold underline cursor-pointer"
-                              >
-                                View full receipt & inspect →
-                              </button>
+                            {/* Verification Badge */}
+                            {ord.paymentStatus === 'verified' || ord.status === 'delivered' ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                <span>Cash Collected</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-200/80 text-amber-900 border border-amber-400">
+                                <Clock className="w-3.5 h-3.5 text-amber-700" />
+                                <span>To Collect: {ord.price}</span>
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="p-2.5 bg-[#FFFDF9] rounded-xl border border-amber-200/80 text-xs space-y-1">
+                            <div className="flex justify-between items-center text-[#411C10]">
+                              <span className="text-[#A66D54]">Amount to Collect:</span>
+                              <span className="font-bold text-[#7C3F27] text-sm">{ord.price}</span>
                             </div>
+                            <p className="text-[11px] text-[#7C3F27] leading-relaxed">
+                              Customer selected <strong>Cash on Delivery</strong>. No advance payment screenshot or UTR needed. Collect cash upon doorstep delivery or bakery pickup.
+                            </p>
                           </div>
-                        ) : (
-                          <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800">
-                            ⚠️ No payment screenshot uploaded.
-                          </div>
-                        )}
 
-                        {/* Rejection reason banner */}
-                        {ord.paymentStatus === 'rejected' && ord.paymentRejectedReason && (
-                          <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800">
-                            <span className="font-bold">Rejection Reason:</span> "{ord.paymentRejectedReason}"
-                          </div>
-                        )}
-
-                        {/* Payment Verification Action Buttons */}
-                        <div className="pt-2 border-t border-[#D29C83]/20 flex items-center gap-2">
-                          {ord.paymentStatus !== 'verified' ? (
-                            <>
+                          {/* COD Collection Action Button */}
+                          <div className="pt-1.5 border-t border-amber-200/70">
+                            {ord.paymentStatus !== 'verified' && ord.status !== 'delivered' ? (
                               <button
                                 type="button"
                                 disabled={verifyingOrderId === (ord._id || ord.orderId)}
                                 onClick={() => handleVerifyPayment(ord)}
-                                className="flex-1 inline-flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white py-2 px-3 rounded-xl text-xs font-semibold shadow-2xs transition-all cursor-pointer disabled:opacity-50"
+                                className="w-full inline-flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white py-2 px-3 rounded-xl text-xs font-semibold shadow-2xs transition-all cursor-pointer disabled:opacity-50"
                               >
                                 {verifyingOrderId === (ord._id || ord.orderId) ? (
                                   <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                                 ) : (
                                   <Check className="w-3.5 h-3.5" />
                                 )}
-                                <span>Verify & Approve Payment</span>
+                                <span>Mark Cash as Collected & Confirm</span>
                               </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setRejectingPaymentOrder(ord);
-                                  setPaymentRejectReason('UTR / Transaction ID not found in bank statement');
-                                  setPaymentRejectCustomReason('');
-                                  setPaymentRejectError('');
-                                }}
-                                className="inline-flex items-center justify-center gap-1 bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 hover:border-rose-600 py-2 px-3 rounded-xl text-xs font-semibold transition-all cursor-pointer"
-                              >
-                                <X className="w-3.5 h-3.5" />
-                                <span>Reject</span>
-                              </button>
-                            </>
-                          ) : (
-                            <div className="w-full flex items-center justify-between text-xs">
-                              <span className="text-emerald-700 font-semibold flex items-center gap-1">
-                                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                                <span>Payment Confirmed & Verified</span>
+                            ) : (
+                              <div className="flex items-center justify-between text-xs text-emerald-700 font-semibold">
+                                <span className="flex items-center gap-1">
+                                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                                  <span>Cash Payment Collected & Confirmed</span>
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="mt-3.5 p-3.5 rounded-2xl bg-[#FFFDF9] border border-[#D29C83]/40 shadow-2xs space-y-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5">
+                              <span className="w-5 h-5 rounded-lg bg-[#FEEDDD] text-[#7C3F27] flex items-center justify-center font-bold text-[11px]">
+                                ₹
                               </span>
+                              <span className="text-xs font-bold text-[#411C10]">
+                                UPI Payment Proof & Verification
+                              </span>
+                            </div>
+
+                            {/* Verification Badge */}
+                            {ord.paymentStatus === 'verified' ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                <span>Verified</span>
+                              </span>
+                            ) : ord.paymentStatus === 'rejected' ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
+                                <XCircle className="w-3.5 h-3.5 text-rose-600" />
+                                <span>Rejected</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300 animate-pulse">
+                                <Clock className="w-3.5 h-3.5 text-amber-600" />
+                                <span>Needs Review</span>
+                              </span>
+                            )}
+                          </div>
+
+                          {/* UTR & Copy Reference */}
+                          <div className="p-2.5 bg-[#FEEDDD]/50 rounded-xl border border-[#D29C83]/30 flex items-center justify-between gap-2">
+                            <div className="min-w-0">
+                              <span className="text-[10px] uppercase font-bold text-[#A66D54] tracking-wider block">
+                                UPI Transaction ID / UTR
+                              </span>
+                              <span className="font-mono text-xs sm:text-sm font-bold text-[#411C10] break-all select-all">
+                                {ord.transactionId || 'Not Provided'}
+                              </span>
+                            </div>
+                            {ord.transactionId && (
                               <button
                                 type="button"
-                                onClick={() => {
-                                  setRejectingPaymentOrder(ord);
-                                  setPaymentRejectReason('Amount received does not match order total');
-                                  setPaymentRejectCustomReason('');
-                                  setPaymentRejectError('');
-                                }}
-                                className="text-[11px] text-rose-600 hover:underline cursor-pointer"
+                                onClick={() => handleCopyTxId(ord.transactionId)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#FFF9F3] hover:bg-[#FEEDDD] border border-[#D29C83]/40 text-[11px] font-semibold text-[#7C3F27] transition-colors cursor-pointer shrink-0"
+                                title="Copy UTR to verify against bank statement"
                               >
-                                Revoke / Reject
+                                {copiedTxId === ord.transactionId ? (
+                                  <>
+                                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                    <span className="text-emerald-700">Copied</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy className="w-3.5 h-3.5" />
+                                    <span>Copy UTR</span>
+                                  </>
+                                )}
                               </button>
+                            )}
+                          </div>
+
+                          {/* Screenshot Thumbnail Preview */}
+                          {ord.paymentScreenshot ? (
+                            <div className="flex items-center gap-3">
+                              <div
+                                onClick={() => {
+                                  setPreviewReceiptImage(ord.paymentScreenshot);
+                                  setPreviewReceiptOrder(ord);
+                                }}
+                                className="relative group w-20 h-20 rounded-xl overflow-hidden border border-[#D29C83]/40 bg-[#2C1810] cursor-pointer shrink-0 shadow-2xs"
+                                title="Click to view full payment screenshot"
+                              >
+                                <img
+                                  src={ord.paymentScreenshot}
+                                  alt="Payment proof receipt"
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                />
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                                  <Maximize2 className="w-5 h-5 drop-shadow" />
+                                </div>
+                              </div>
+
+                              <div className="flex-1 text-xs space-y-1">
+                                <p className="text-[#411C10] font-semibold flex items-center gap-1">
+                                  <span>Receipt Screenshot</span>
+                                </p>
+                                <p className="text-[11px] text-[#7C3F27]">
+                                  Order Total: <strong className="text-[#411C10]">{ord.price}</strong>
+                                </p>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setPreviewReceiptImage(ord.paymentScreenshot);
+                                    setPreviewReceiptOrder(ord);
+                                  }}
+                                  className="text-[11px] text-[#7C3F27] hover:text-[#411C10] font-semibold underline cursor-pointer"
+                                >
+                                  View full receipt & inspect →
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800">
+                              ⚠️ No payment screenshot uploaded.
                             </div>
                           )}
+
+                          {/* Rejection reason banner */}
+                          {ord.paymentStatus === 'rejected' && ord.paymentRejectedReason && (
+                            <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800">
+                              <span className="font-bold">Rejection Reason:</span> "{ord.paymentRejectedReason}"
+                            </div>
+                          )}
+
+                          {/* Payment Verification Action Buttons */}
+                          <div className="pt-2 border-t border-[#D29C83]/20 flex items-center gap-2">
+                            {ord.paymentStatus !== 'verified' ? (
+                              <>
+                                <button
+                                  type="button"
+                                  disabled={verifyingOrderId === (ord._id || ord.orderId)}
+                                  onClick={() => handleVerifyPayment(ord)}
+                                  className="flex-1 inline-flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white py-2 px-3 rounded-xl text-xs font-semibold shadow-2xs transition-all cursor-pointer disabled:opacity-50"
+                                >
+                                  {verifyingOrderId === (ord._id || ord.orderId) ? (
+                                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                  ) : (
+                                    <Check className="w-3.5 h-3.5" />
+                                  )}
+                                  <span>Verify & Approve Payment</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setRejectingPaymentOrder(ord);
+                                    setPaymentRejectReason('UTR / Transaction ID not found in bank statement');
+                                    setPaymentRejectCustomReason('');
+                                    setPaymentRejectError('');
+                                  }}
+                                  className="inline-flex items-center justify-center gap-1 bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 hover:border-rose-600 py-2 px-3 rounded-xl text-xs font-semibold transition-all cursor-pointer"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                  <span>Reject</span>
+                                </button>
+                              </>
+                            ) : (
+                              <div className="w-full flex items-center justify-between text-xs">
+                                <span className="text-emerald-700 font-semibold flex items-center gap-1">
+                                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                                  <span>Payment Confirmed & Verified</span>
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setRejectingPaymentOrder(ord);
+                                    setPaymentRejectReason('Amount received does not match order total');
+                                    setPaymentRejectCustomReason('');
+                                    setPaymentRejectError('');
+                                  }}
+                                  className="text-[11px] text-rose-600 hover:underline cursor-pointer"
+                                >
+                                  Revoke / Reject
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
+                      )}
 
                       {/* Customer Cancellation Request Banner */}
                       {ord.cancellationStatus === 'pending' && (
