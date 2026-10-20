@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Sparkles, Star, Flame } from 'lucide-react';
 import { SectionHeading } from '../components/SectionHeading';
 import { PortfolioCard } from '../components/PortfolioCard';
 import { ImageLightbox } from '../components/ImageLightbox';
+import { OrderModal } from '../components/OrderModal';
 import { API_BASE_URL } from '../utils/api';
 import { Reveal } from '../components/Reveal';
 
@@ -14,6 +15,7 @@ export function Creations() {
   const [featuredOnly, setFeaturedOnly] = useState(false);
   const [bestsellerOnly, setBestsellerOnly] = useState(false);
   const [activeLightboxIndex, setActiveLightboxIndex] = useState(null);
+  const [orderModal, setOrderModal] = useState({ isOpen: false, item: null, tier: null });
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
 
@@ -273,6 +275,17 @@ export function Creations() {
         onClose={handleCloseLightbox}
         onPrev={filteredItems.length > 1 ? handlePrevLightbox : undefined}
         onNext={filteredItems.length > 1 ? handleNextLightbox : undefined}
+        onOrderNow={(selectedItem, selectedTier) =>
+          setOrderModal({ isOpen: true, item: selectedItem, tier: selectedTier })
+        }
+      />
+
+      {/* Order Now Checkout Modal */}
+      <OrderModal
+        isOpen={orderModal.isOpen}
+        onClose={() => setOrderModal({ isOpen: false, item: null, tier: null })}
+        item={orderModal.item}
+        selectedTier={orderModal.tier}
       />
     </section>
   );

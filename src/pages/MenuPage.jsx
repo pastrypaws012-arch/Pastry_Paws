@@ -589,6 +589,9 @@ export function MenuPage() {
         onClose={handleCloseLightbox}
         onPrev={filteredItems.length > 1 ? handlePrevLightbox : undefined}
         onNext={filteredItems.length > 1 ? handleNextLightbox : undefined}
+        onOrderNow={(selectedItem, selectedTier) =>
+          setOrderModal({ isOpen: true, item: selectedItem, tier: selectedTier })
+        }
       />
 
       {/* Order Now Checkout Modal */}

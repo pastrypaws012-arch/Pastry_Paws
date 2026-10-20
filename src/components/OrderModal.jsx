@@ -698,19 +698,19 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
 
                   {/* UPI ID Copy Bar & Mobile Deep Link */}
                   <div className="space-y-2.5 pt-1 border-t border-[#D29C83]/20">
-                    <div className="flex items-center justify-between bg-[#FEEDDD]/70 border border-[#D29C83]/40 rounded-xl px-3.5 py-2 text-xs">
-                      <div className="text-left">
+                    <div className="flex items-center justify-between gap-2 bg-[#FEEDDD]/70 border border-[#D29C83]/40 rounded-xl px-3.5 py-2 text-xs">
+                      <div className="text-left min-w-0 flex-1 pr-2">
                         <span className="text-[9px] uppercase tracking-wider text-[#A66D54] block font-semibold">
                           Official UPI ID
                         </span>
-                        <span className="font-mono font-bold text-[#411C10] text-xs sm:text-sm">
+                        <span className="font-mono font-bold text-[#411C10] text-xs sm:text-sm block truncate" title={upiId}>
                           {upiId}
                         </span>
                       </div>
                       <button
                         type="button"
                         onClick={handleCopyUpi}
-                        className="inline-flex items-center gap-1 bg-[#7C3F27] hover:bg-[#5E2B19] text-[#FEEDDD] px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer shadow-2xs"
+                        className="inline-flex items-center gap-1 bg-[#7C3F27] hover:bg-[#5E2B19] text-[#FEEDDD] px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0 transition-all cursor-pointer shadow-2xs"
                       >
                         {copiedUpi ? (
                           <>

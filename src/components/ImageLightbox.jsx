@@ -1,6 +1,7 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, ChevronLeft, ChevronRight, MessageCircle } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, MessageCircle, ShoppingBag, Check } from 'lucide-react';
+import { WhatsAppIcon } from './Icons';
 import { brandConfig } from '../data/brand';
 
 export function ImageLightbox({
@@ -10,7 +11,24 @@ export function ImageLightbox({
   onClose,
   onPrev,
   onNext,
+  onOrderNow,
 }) {
+  const [selectedSize, setSelectedSize] = useState('');
+
+  useEffect(() => {
+    if (item?.pricingDetails && item.pricingDetails.length > 0) {
+      setSelectedSize(item.pricingDetails[0].size);
+    } else {
+      setSelectedSize('');
+    }
+  }, [item]);
+
+  const selectedTier =
+    item?.pricingDetails?.find((p) => p.size === selectedSize) ||
+    item?.pricingDetails?.[0] || {
+      size: 'Standard',
+      price: item?.startingPrice ? `₹${item.startingPrice}/-` : '₹299/-',
+    };
   const handleKeyDown = useCallback(
     (e) => {
       if (!isOpen) return;
@@ -134,22 +152,40 @@ export function ImageLightbox({
                         Menu Pricing
                       </span>
                       <span className="text-[10px] uppercase font-semibold text-[#A66D54] bg-[#FFF9F3] px-2 py-0.5 rounded-full border border-[#D29C83]/30">
-                        Baked to order
+                        Select portion to order
                       </span>
                     </div>
                     <div className="space-y-1.5">
-                      {item.pricingDetails.map((pd) => (
-                        <div key={pd.size} className="flex items-center justify-between text-xs py-1 border-b border-[#D29C83]/20 last:border-0">
-                          <span className="text-[#411C10] font-medium">{pd.size}</span>
-                          <span className="text-[#7C3F27] font-bold">{pd.price}</span>
-                        </div>
-                      ))}
+                      {item.pricingDetails.map((pd) => {
+                        const isSelected = selectedSize === pd.size;
+                        return (
+                          <button
+                            key={pd.size}
+                            type="button"
+                            onClick={() => setSelectedSize(pd.size)}
+                            className={`w-full flex items-center justify-between text-xs py-2 px-3 rounded-xl border transition-all text-left cursor-pointer ${
+                              isSelected
+                                ? 'bg-[#FFF9F3] border-[#7C3F27] text-[#411C10] shadow-2xs font-semibold'
+                                : 'bg-[#FEEDDD]/40 border-transparent hover:bg-[#FFF9F3]/60 text-[#7C3F27]'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <div
+                                className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
+                                  isSelected
+                                    ? 'border-[#7C3F27] bg-[#7C3F27] text-[#FFF9F3]'
+                                    : 'border-[#D29C83]'
+                                }`}
+                              >
+                                {isSelected && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                              </div>
+                              <span className="font-medium text-[#411C10]">{pd.size}</span>
+                            </div>
+                            <span className="text-[#7C3F27] font-bold">{pd.price}</span>
+                          </button>
+                        );
+                      })}
                     </div>
-                    {item.category === 'Cakes' && (
-                      <p className="text-[11px] text-[#7C3F27] mt-2 font-medium italic">
-
-                      </p>
-                    )}
                     {item.category === 'Cupcakes' && (
                       <p className="text-[11px] text-[#A66D54] mt-2 italic">
                         * Small cupcake: min 10 pieces | Medium & large: min 8 pieces
@@ -182,19 +218,35 @@ export function ImageLightbox({
                 )}
               </div>
 
-              {/* Inquiry CTA */}
-              <div className="mt-8 pt-6 border-t border-[#D29C83]/20">
-                <a
-                  href={whatsappInquiryUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full inline-flex items-center justify-center gap-2 bg-[#7C3F27] text-[#FEEDDD] px-5 py-3 rounded-full text-sm font-medium hover:bg-[#5E2B19] transition-colors"
-                >
-                  <MessageCircle className="w-4 h-4 text-[#F9C8B5]" />
-                  <span>Inquire about this creation</span>
-                </a>
-                <p className="text-[11px] text-[#A66D54] text-center mt-2.5">
-                  Handcrafted custom orders require advance notice
+              {/* Order Now & WhatsApp Inquiry CTAs */}
+              <div className="mt-6 pt-5 border-t border-[#D29C83]/20 space-y-2.5">
+                <div className="flex items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onOrderNow?.(item, selectedTier);
+                      onClose?.();
+                    }}
+                    className="flex-1 inline-flex items-center justify-center gap-2 bg-[#7C3F27] text-[#FEEDDD] hover:bg-[#5E2B19] py-3 px-5 rounded-2xl text-xs sm:text-sm font-semibold tracking-wide transition-all shadow-md hover:shadow-lg active:scale-[0.98] cursor-pointer"
+                  >
+                    <ShoppingBag className="w-4 h-4 text-[#F9C8B5] shrink-0" />
+                    <span>Order Now ({selectedTier.price})</span>
+                  </button>
+
+                  <a
+                    href={whatsappInquiryUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={`Enquire about "${item.title}" on WhatsApp`}
+                    className="shrink-0 w-11 h-11 rounded-2xl bg-[#25D366]/15 hover:bg-[#25D366] text-[#128C7E] hover:text-white border border-[#25D366]/35 flex items-center justify-center transition-all duration-200 shadow-2xs hover:shadow hover:scale-105 active:scale-95 cursor-pointer"
+                    aria-label={`Enquire about ${item.title} on WhatsApp`}
+                  >
+                    <WhatsAppIcon className="w-5 h-5" />
+                  </a>
+                </div>
+
+                <p className="text-[11px] text-[#A66D54] text-center">
+                  Freshly baked to order • Free local studio pickup or doorstep delivery
                 </p>
               </div>
             </div>

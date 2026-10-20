@@ -3132,9 +3132,9 @@ export function AdminPage() {
                     </div>
 
                     {/* QR Code Container in Preview */}
-                    <div className="bg-white border border-[#D29C83]/30 rounded-2xl p-4 shadow-inner space-y-2.5">
-                      <div className="inline-flex items-center gap-1 bg-[#FEEDDD] px-2.5 py-0.5 rounded-full text-[10px] font-semibold text-[#7C3F27]">
-                        <QrCode className="w-3 h-3" />
+                    <div className="bg-white border border-[#D29C83]/30 rounded-2xl p-4 shadow-inner flex flex-col items-center justify-center gap-3 text-center">
+                      <div className="inline-flex items-center justify-center gap-1.5 bg-[#FEEDDD] px-3 py-1 rounded-full text-[10px] font-semibold text-[#7C3F27] border border-[#D29C83]/30 mx-auto">
+                        <QrCode className="w-3.5 h-3.5" />
                         <span>
                           {paymentSettings.qrCodeImage && paymentSettings.qrMode === 'custom'
                             ? 'Bakery Standee QR'
@@ -3142,7 +3142,7 @@ export function AdminPage() {
                         </span>
                       </div>
 
-                      <div className="p-2.5 bg-white rounded-xl border-2 border-[#D29C83]/30 shadow-xs inline-block">
+                      <div className="p-3 bg-white rounded-2xl border-2 border-[#D29C83]/40 shadow-sm flex items-center justify-center mx-auto max-w-[220px]">
                         <img
                           src={
                             paymentSettings.qrCodeImage && paymentSettings.qrMode === 'custom'
@@ -3154,41 +3154,44 @@ export function AdminPage() {
                                 )}`
                           }
                           alt="Live Preview QR"
-                          className="w-32 h-32 sm:w-36 sm:h-36 object-contain mx-auto rounded"
+                          className="w-36 h-36 object-contain rounded-lg mx-auto"
                         />
                       </div>
 
-                      <div className="text-[10px] text-[#7C3F27] font-semibold">
+                      <div className="text-[11px] text-[#7C3F27] font-semibold text-center">
                         Payee: <strong>{paymentSettings.payeeName || 'Pastry Paws'}</strong>
                       </div>
 
                       {/* Supported Apps */}
-                      <div className="flex items-center justify-center gap-1.5 text-[9px] text-[#A66D54]">
-                        <span className="bg-[#FEEDDD] px-1.5 py-0.5 rounded font-semibold text-[#411C10]">
+                      <div className="flex items-center justify-center gap-1.5 text-[9px] text-[#A66D54] flex-wrap">
+                        <span className="bg-[#FEEDDD] px-2 py-0.5 rounded font-semibold text-[#411C10] border border-[#D29C83]/20">
                           GPay
                         </span>
                         <span>•</span>
-                        <span className="bg-[#FEEDDD] px-1.5 py-0.5 rounded font-semibold text-[#411C10]">
+                        <span className="bg-[#FEEDDD] px-2 py-0.5 rounded font-semibold text-[#411C10] border border-[#D29C83]/20">
                           PhonePe
                         </span>
                         <span>•</span>
-                        <span className="bg-[#FEEDDD] px-1.5 py-0.5 rounded font-semibold text-[#411C10]">
+                        <span className="bg-[#FEEDDD] px-2 py-0.5 rounded font-semibold text-[#411C10] border border-[#D29C83]/20">
                           Paytm
                         </span>
                         <span>•</span>
-                        <span className="bg-[#FEEDDD] px-1.5 py-0.5 rounded font-semibold text-[#411C10]">
+                        <span className="bg-[#FEEDDD] px-2 py-0.5 rounded font-semibold text-[#411C10] border border-[#D29C83]/20">
                           BHIM
                         </span>
                       </div>
                     </div>
 
                     {/* Live UPI Copy Bar */}
-                    <div className="flex items-center justify-between bg-[#FEEDDD]/70 border border-[#D29C83]/40 rounded-xl px-3 py-2 text-xs">
-                      <div className="text-left">
+                    <div className="flex items-center justify-between gap-2 bg-[#FEEDDD]/70 border border-[#D29C83]/40 rounded-xl px-3.5 py-2 text-xs">
+                      <div className="text-left min-w-0 flex-1">
                         <span className="text-[9px] uppercase tracking-wider text-[#A66D54] block font-semibold">
                           UPI ID
                         </span>
-                        <span className="font-mono font-bold text-[#411C10] text-xs">
+                        <span
+                          className="font-mono font-bold text-[#411C10] text-xs sm:text-sm block truncate"
+                          title={paymentSettings.upiId || '9790983844@okaxis'}
+                        >
                           {paymentSettings.upiId || '9790983844@okaxis'}
                         </span>
                       </div>
@@ -3201,16 +3204,16 @@ export function AdminPage() {
                             setTimeout(() => setCopiedAdminUpi(false), 2000);
                           }
                         }}
-                        className="inline-flex items-center gap-1 bg-[#7C3F27] text-[#FEEDDD] px-2.5 py-1 rounded-lg text-[11px] font-semibold"
+                        className="inline-flex items-center gap-1 bg-[#7C3F27] hover:bg-[#5E2B19] text-[#FEEDDD] px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0 transition-all cursor-pointer shadow-2xs"
                       >
                         {copiedAdminUpi ? (
                           <>
-                            <Check className="w-3 h-3 text-emerald-300" />
-                            <span>Copied</span>
+                            <Check className="w-3.5 h-3.5 text-emerald-300" />
+                            <span>Copied!</span>
                           </>
                         ) : (
                           <>
-                            <Copy className="w-3 h-3" />
+                            <Copy className="w-3.5 h-3.5" />
                             <span>Copy</span>
                           </>
                         )}
@@ -3218,12 +3221,15 @@ export function AdminPage() {
                     </div>
 
                     {/* Payment Phone row */}
-                    <div className="flex items-center justify-between text-[11px] text-[#7C3F27] pt-1 border-t border-[#D29C83]/20">
+                    <div className="flex items-center justify-between text-xs text-[#7C3F27] pt-2 px-1 border-t border-[#D29C83]/20">
                       <span className="text-[#A66D54]">Need Assistance:</span>
-                      <span className="font-bold flex items-center gap-1">
-                        <Phone className="w-3 h-3" />
+                      <a
+                        href={`tel:${paymentSettings.phoneNumber || '9790983844'}`}
+                        className="font-bold hover:text-[#411C10] flex items-center gap-1.5 transition-colors"
+                      >
+                        <Phone className="w-3.5 h-3.5" />
                         <span>+91 {paymentSettings.phoneNumber || '9790983844'}</span>
-                      </span>
+                      </a>
                     </div>
                   </div>
                 </div>
