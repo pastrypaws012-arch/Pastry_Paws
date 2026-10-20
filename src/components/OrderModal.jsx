@@ -584,7 +584,7 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
                         Pastry Paws is a home bakery. <strong>We do not provide direct home delivery.</strong>
                       </p>
                       <div className="text-[11px] text-[#411C10] space-y-0.5 pt-0.5">
-                        <p>• <strong>Self-Pickup:</strong> You can come directly to our Avadi studio to collect your order.</p>
+                        <p>• <strong>Self-Pickup:</strong> You can come directly to our studio to collect your order.</p>
                         <p>• <strong>Parcel / Courier Service:</strong> Or you can arrange your own delivery person / courier service (such as Dunzo, Porter, Swiggy Genie, or Rapido) to pick it up from our studio and deliver to you.</p>
                       </div>
                     </div>
@@ -663,14 +663,14 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
                         if (formError) setFormError('');
                       }}
                       className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex items-start gap-2.5 ${paymentMethod === 'UPI'
-                          ? 'bg-[#FEEDDD] border-[#7C3F27] shadow-xs ring-1 ring-[#7C3F27]'
-                          : 'bg-[#FFF9F3] border-[#D29C83]/40 hover:bg-[#FEEDDD]/40'
+                        ? 'bg-[#FEEDDD] border-[#7C3F27] shadow-xs ring-1 ring-[#7C3F27]'
+                        : 'bg-[#FFF9F3] border-[#D29C83]/40 hover:bg-[#FEEDDD]/40'
                         }`}
                     >
                       <div
                         className={`w-5 h-5 rounded-full border mt-0.5 flex items-center justify-center shrink-0 ${paymentMethod === 'UPI'
-                            ? 'border-[#7C3F27] bg-[#7C3F27] text-white'
-                            : 'border-[#A66D54]/50'
+                          ? 'border-[#7C3F27] bg-[#7C3F27] text-white'
+                          : 'border-[#A66D54]/50'
                           }`}
                       >
                         {paymentMethod === 'UPI' && <Check className="w-3 h-3 stroke-[3]" />}
@@ -693,14 +693,14 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
                         if (formError) setFormError('');
                       }}
                       className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex items-start gap-2.5 ${paymentMethod === 'COD'
-                          ? 'bg-[#FEEDDD] border-[#7C3F27] shadow-xs ring-1 ring-[#7C3F27]'
-                          : 'bg-[#FFF9F3] border-[#D29C83]/40 hover:bg-[#FEEDDD]/40'
+                        ? 'bg-[#FEEDDD] border-[#7C3F27] shadow-xs ring-1 ring-[#7C3F27]'
+                        : 'bg-[#FFF9F3] border-[#D29C83]/40 hover:bg-[#FEEDDD]/40'
                         }`}
                     >
                       <div
                         className={`w-5 h-5 rounded-full border mt-0.5 flex items-center justify-center shrink-0 ${paymentMethod === 'COD'
-                            ? 'border-[#7C3F27] bg-[#7C3F27] text-white'
-                            : 'border-[#A66D54]/50'
+                          ? 'border-[#7C3F27] bg-[#7C3F27] text-white'
+                          : 'border-[#A66D54]/50'
                           }`}
                       >
                         {paymentMethod === 'COD' && <Check className="w-3 h-3 stroke-[3]" />}
@@ -827,8 +827,8 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
                           type="button"
                           onClick={() => setActiveQrMode('custom')}
                           className={`text-[11px] font-semibold px-3 py-1 rounded-lg transition-all cursor-pointer ${currentQrMode === 'custom'
-                              ? 'bg-[#7C3F27] text-[#FEEDDD] shadow-2xs'
-                              : 'bg-[#FEEDDD]/70 text-[#7C3F27] hover:bg-[#FEEDDD] border border-[#D29C83]/25'
+                            ? 'bg-[#7C3F27] text-[#FEEDDD] shadow-2xs'
+                            : 'bg-[#FEEDDD]/70 text-[#7C3F27] hover:bg-[#FEEDDD] border border-[#D29C83]/25'
                             }`}
                         >
                           Official Shop Standee QR
@@ -837,8 +837,8 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
                           type="button"
                           onClick={() => setActiveQrMode('dynamic')}
                           className={`text-[11px] font-semibold px-3 py-1 rounded-lg transition-all cursor-pointer ${currentQrMode === 'dynamic'
-                              ? 'bg-[#7C3F27] text-[#FEEDDD] shadow-2xs'
-                              : 'bg-[#FEEDDD]/70 text-[#7C3F27] hover:bg-[#FEEDDD] border border-[#D29C83]/25'
+                            ? 'bg-[#7C3F27] text-[#FEEDDD] shadow-2xs'
+                            : 'bg-[#FEEDDD]/70 text-[#7C3F27] hover:bg-[#FEEDDD] border border-[#D29C83]/25'
                             }`}
                         >
                           Exact Amount ({currentTier.price}) QR
