@@ -29,9 +29,23 @@ import {
 import { brandConfig } from '../data/brand';
 import { API_BASE_URL } from '../utils/api';
 import { printOrderInvoice } from '../utils/invoiceGenerator';
+import { getCachedPaymentConfig, fetchPaymentConfig } from '../utils/paymentConfig';
 
 export function OrderModal({ isOpen, onClose, item, selectedTier }) {
   const [modalStep, setModalStep] = useState('details'); // 'details' | 'payment'
+  const [paymentConfig, setPaymentConfig] = useState(getCachedPaymentConfig);
+  const [activeQrMode, setActiveQrMode] = useState('auto'); // 'auto' | 'custom' | 'dynamic'
+
+  // Fetch latest payment config when modal opens
+  React.useEffect(() => {
+    if (isOpen) {
+      fetchPaymentConfig().then((cfg) => {
+        if (cfg) {
+          setPaymentConfig(cfg);
+        }
+      });
+    }
+  }, [isOpen]);
 
   // Step 1: Customer & Delivery Details
   const [formData, setFormData] = useState({
@@ -63,8 +77,18 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
 
   // Clean numeric price for UPI payment URI (e.g. "₹399/-" -> "399")
   const numericPrice = (currentTier.price || '').replace(/[^0-9]/g, '') || '299';
-  const upiId = brandConfig.payment?.upiId || '9790983844@okaxis';
-  const payeeName = brandConfig.payment?.payeeName || 'Pastry Paws';
+  const upiId = paymentConfig.upiId || brandConfig.payment?.upiId || '9790983844@okaxis';
+  const payeeName = paymentConfig.payeeName || brandConfig.payment?.payeeName || 'Pastry Paws';
+  const paymentPhone = paymentConfig.phoneNumber || brandConfig.contact?.phone || '9790983844';
+  const paymentWhatsapp = paymentConfig.whatsappNumber || brandConfig.contact?.whatsappNumber || '919790983844';
+
+  const hasCustomQr = Boolean(paymentConfig.qrCodeImage);
+  const currentQrMode =
+    activeQrMode === 'auto'
+      ? hasCustomQr && paymentConfig.qrMode === 'custom'
+        ? 'custom'
+        : 'dynamic'
+      : activeQrMode;
 
   // Standard NPCI UPI URI Scheme (compatible with Google Pay, PhonePe, Paytm, BHIM)
   const upiDeepLink = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(
@@ -74,9 +98,12 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
   )}`;
 
   // Dynamic QR code generated with exact order amount
-  const upiQrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(
+  const upiQrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(
     upiDeepLink
   )}`;
+
+  // Active QR image to show based on selected mode
+  const activeQrImageUrl = currentQrMode === 'custom' && hasCustomQr ? paymentConfig.qrCodeImage : upiQrCodeUrl;
 
   const handleChange = (e) => {
     setFormData((prev) => ({
@@ -246,7 +273,7 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
 
   // Pre-filled WhatsApp link with complete receipt & payment verification details
   const whatsappReceiptUrl = placedOrder
-    ? `https://wa.me/${brandConfig.contact.whatsappNumber}?text=${encodeURIComponent(
+    ? `https://wa.me/${paymentWhatsapp}?text=${encodeURIComponent(
       `Hello Pastry Paws! I just placed an order with UPI payment proof:\n\n*Order ID:* ${placedOrder.orderId}\n*Item:* ${placedOrder.itemTitle} (${placedOrder.selectedSize})\n*Amount:* ${placedOrder.price}\n*Customer:* ${placedOrder.customerName} (${placedOrder.customerPhone})\n*Address:* ${placedOrder.deliveryAddress}\n*Delivery Date:* ${placedOrder.deliveryDate} (${placedOrder.deliveryTime})\n*UPI UTR / Ref No:* ${placedOrder.transactionId}\n*Payment Status:* Verification Pending\n\nPlease verify my payment and confirm. Thank you!`
     )}`
     : '#';
@@ -599,28 +626,58 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
 
                 {/* UPI QR & Payment Options Box */}
                 <div className="bg-[#FFF9F3] border border-[#D29C83]/40 rounded-3xl p-4 sm:p-5 shadow-inner space-y-4 text-center">
-                  <div className="space-y-1">
+                  <div className="space-y-2">
                     <div className="inline-flex items-center gap-1.5 bg-[#FEEDDD] px-3 py-1 rounded-full text-[11px] font-semibold text-[#7C3F27] border border-[#D29C83]/30">
                       <QrCode className="w-3.5 h-3.5" />
                       <span>Scan QR to Pay via Google Pay / Any UPI App</span>
                     </div>
+
+                    {/* QR Code Switcher if Admin has uploaded a custom standee QR */}
+                    {hasCustomQr && (
+                      <div className="flex items-center justify-center gap-1.5 pt-0.5">
+                        <button
+                          type="button"
+                          onClick={() => setActiveQrMode('custom')}
+                          className={`text-[11px] font-semibold px-3 py-1 rounded-lg transition-all cursor-pointer ${
+                            currentQrMode === 'custom'
+                              ? 'bg-[#7C3F27] text-[#FEEDDD] shadow-2xs'
+                              : 'bg-[#FEEDDD]/70 text-[#7C3F27] hover:bg-[#FEEDDD] border border-[#D29C83]/25'
+                          }`}
+                        >
+                          Official Shop Standee QR
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setActiveQrMode('dynamic')}
+                          className={`text-[11px] font-semibold px-3 py-1 rounded-lg transition-all cursor-pointer ${
+                            currentQrMode === 'dynamic'
+                              ? 'bg-[#7C3F27] text-[#FEEDDD] shadow-2xs'
+                              : 'bg-[#FEEDDD]/70 text-[#7C3F27] hover:bg-[#FEEDDD] border border-[#D29C83]/25'
+                          }`}
+                        >
+                          Exact Amount ({currentTier.price}) QR
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   {/* QR Code Container */}
-                  <div className="flex flex-col items-center justify-center gap-3">
-                    <div className="p-3 bg-white rounded-2xl border-2 border-[#D29C83]/40 shadow-sm relative group">
+                  <div className="flex flex-col items-center justify-center gap-2.5">
+                    <div className="p-3 bg-white rounded-2xl border-2 border-[#D29C83]/40 shadow-sm relative group max-w-xs mx-auto">
                       <img
-                        src={upiQrCodeUrl}
+                        src={activeQrImageUrl}
                         alt="UPI Payment QR Code"
-                        className="w-36 h-36 sm:w-40 sm:h-40 object-contain mx-auto"
+                        className="w-36 h-36 sm:w-44 sm:h-44 object-contain mx-auto rounded-lg"
                       />
-                      <div className="text-[10px] font-semibold text-center text-[#7C3F27] mt-1">
-                        Amount: {currentTier.price}
+                      <div className="text-[10px] font-semibold text-center text-[#7C3F27] mt-1.5 flex items-center justify-center gap-2">
+                        <span>Payee: <strong>{payeeName}</strong></span>
+                        <span>•</span>
+                        <span>Amount: <strong>{currentTier.price}</strong></span>
                       </div>
                     </div>
 
                     {/* Supported Apps Badges */}
-                    <div className="flex items-center justify-center gap-2 text-[10px] text-[#A66D54] font-medium">
+                    <div className="flex items-center justify-center gap-2 text-[10px] text-[#A66D54] font-medium flex-wrap">
                       <span className="bg-[#FEEDDD] px-2 py-0.5 rounded-md border border-[#D29C83]/30 font-semibold text-[#411C10]">
                         Google Pay
                       </span>
@@ -640,13 +697,13 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
                   </div>
 
                   {/* UPI ID Copy Bar & Mobile Deep Link */}
-                  <div className="space-y-2 pt-1 border-t border-[#D29C83]/20">
-                    <div className="flex items-center justify-between bg-[#FEEDDD]/70 border border-[#D29C83]/40 rounded-xl px-3 py-2 text-xs">
+                  <div className="space-y-2.5 pt-1 border-t border-[#D29C83]/20">
+                    <div className="flex items-center justify-between bg-[#FEEDDD]/70 border border-[#D29C83]/40 rounded-xl px-3.5 py-2 text-xs">
                       <div className="text-left">
                         <span className="text-[9px] uppercase tracking-wider text-[#A66D54] block font-semibold">
-                          UPI ID
+                          Official UPI ID
                         </span>
-                        <span className="font-mono font-bold text-[#411C10]">
+                        <span className="font-mono font-bold text-[#411C10] text-xs sm:text-sm">
                           {upiId}
                         </span>
                       </div>
@@ -663,7 +720,7 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
                         ) : (
                           <>
                             <Copy className="w-3.5 h-3.5" />
-                            <span>Copy</span>
+                            <span>Copy UPI ID</span>
                           </>
                         )}
                       </button>
@@ -677,6 +734,18 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
                       <ExternalLink className="w-3.5 h-3.5" />
                       <span>Tap to Open Google Pay / PhonePe on Phone</span>
                     </a>
+
+                    {/* Payment Support & Phone Details */}
+                    <div className="flex items-center justify-between text-[11px] text-[#7C3F27] px-1 pt-1 border-t border-[#D29C83]/20">
+                      <span className="text-[#A66D54]">Payment Support / Assistance:</span>
+                      <a
+                        href={`tel:${paymentPhone}`}
+                        className="font-bold underline hover:text-[#411C10] flex items-center gap-1"
+                      >
+                        <Phone className="w-3 h-3" />
+                        <span>+91 {paymentPhone}</span>
+                      </a>
+                    </div>
                   </div>
                 </div>
 

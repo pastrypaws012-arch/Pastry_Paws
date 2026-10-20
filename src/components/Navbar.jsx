@@ -31,19 +31,18 @@ export function Navbar() {
           className="bg-[#7C3F27] text-[#FFF9F3] text-[11px] sm:text-xs tracking-widest uppercase py-2 text-center px-4 font-medium flex items-center justify-center gap-2 transition-all duration-300 border-b border-[#5E2B19]/30"
         >
           <span>🐾 Pastry Paws • Cakes &amp; Pastries</span>
-          <span className="hidden sm:inline opacity-70">•</span>
-          <span className="hidden sm:inline">Birthday cakes include complimentary mini cookies</span>
+
+
           <span className="hidden sm:inline opacity-70">•</span>
           <span className="hidden sm:inline">Choco Lava @ ₹99/-</span>
         </aside>
 
         {/* Main Navigation Bar */}
         <div
-          className={`transition-all duration-300 ${
-            isScrolled
-              ? 'bg-[#FEEDDD]/95 backdrop-blur-md py-3.5 shadow-sm border-b border-[#D29C83]/30'
-              : 'bg-[#FEEDDD]/85 backdrop-blur-xs py-4 md:py-5 border-b border-[#D29C83]/15'
-          }`}
+          className={`transition-all duration-300 ${isScrolled
+            ? 'bg-[#FEEDDD]/95 backdrop-blur-md py-3.5 shadow-sm border-b border-[#D29C83]/30'
+            : 'bg-[#FEEDDD]/85 backdrop-blur-xs py-4 md:py-5 border-b border-[#D29C83]/15'
+            }`}
         >
           <div className="max-w-7xl mx-auto px-5 sm:px-8 flex items-center justify-between">
             {/* Brand Wordmark with Pastry Paw icon */}
@@ -89,17 +88,15 @@ export function Navbar() {
                   <Link
                     key={link.href}
                     to={link.href}
-                    className={`relative text-[14px] tracking-wide transition-colors font-medium py-1 whitespace-nowrap group ${
-                      isExactActive
-                        ? 'text-[#7C3F27] font-semibold'
-                        : 'text-[#411C10]/85 hover:text-[#7C3F27]'
-                    }`}
+                    className={`relative text-[14px] tracking-wide transition-colors font-medium py-1 whitespace-nowrap group ${isExactActive
+                      ? 'text-[#7C3F27] font-semibold'
+                      : 'text-[#411C10]/85 hover:text-[#7C3F27]'
+                      }`}
                   >
                     <span>{link.label}</span>
                     <span
-                      className={`absolute bottom-0 left-0 h-[2px] rounded-full bg-[#7C3F27] transition-all duration-300 ${
-                        isExactActive ? 'w-full' : 'w-0 group-hover:w-full'
-                      }`}
+                      className={`absolute bottom-0 left-0 h-[2px] rounded-full bg-[#7C3F27] transition-all duration-300 ${isExactActive ? 'w-full' : 'w-0 group-hover:w-full'
+                        }`}
                     />
                   </Link>
                 );

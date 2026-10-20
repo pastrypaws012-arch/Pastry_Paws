@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -35,10 +35,28 @@ import {
   Maximize2,
   QrCode,
   Clock,
+  Filter,
+  Calendar,
+  ArrowUpDown,
+  Tag,
+  Star,
+  RotateCcw,
+  ChevronDown,
+  CheckCheck,
+  ListFilter,
+  CreditCard,
+  Phone,
+  Smartphone,
+  Save,
 } from 'lucide-react';
 import { brandConfig } from '../data/brand';
 import { API_BASE_URL } from '../utils/api';
 import { printOrderInvoice } from '../utils/invoiceGenerator';
+import {
+  getCachedPaymentConfig,
+  fetchPaymentConfig,
+  savePaymentConfig,
+} from '../utils/paymentConfig';
 
 export function AdminPage() {
   const location = useLocation();
@@ -75,8 +93,28 @@ export function AdminPage() {
   const [orders, setOrders] = useState([]);
   const [offerings, setOfferings] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // TAB 5: Payment & QR Settings State
+  const [paymentSettings, setPaymentSettings] = useState(getCachedPaymentConfig);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [savingPayment, setSavingPayment] = useState(false);
+  const [uploadingQrImage, setUploadingQrImage] = useState(false);
+  const [paymentFormError, setPaymentFormError] = useState('');
+  const [copiedAdminUpi, setCopiedAdminUpi] = useState(false);
+  // TAB 1: Menu Items Filter & Sort States
   const [searchFilter, setSearchFilter] = useState('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('All');
+  const [selectedBadgeFilter, setSelectedBadgeFilter] = useState('All');
+  const [selectedFeaturedFilter, setSelectedFeaturedFilter] = useState('All');
+  const [itemsSortBy, setItemsSortBy] = useState('default');
+
+  // TAB 2: Categories Filter & Sort States
+  const [categoriesSearchQuery, setCategoriesSearchQuery] = useState('');
+  const [categoriesSortBy, setCategoriesSortBy] = useState('default');
+
+  // TAB 3: Offerings Filter & Sort States
+  const [offeringsSearchQuery, setOfferingsSearchQuery] = useState('');
+  const [offeringsSortBy, setOfferingsSortBy] = useState('default');
   const [systemStatus, setSystemStatus] = useState(null);
   const [statusLoading, setStatusLoading] = useState(false);
 
@@ -144,8 +182,12 @@ export function AdminPage() {
   const [denialError, setDenialError] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
-  // Admin UPI Payment Verification State
+  // Admin UPI Payment & Order Verification State
   const [ordersPaymentFilter, setOrdersPaymentFilter] = useState('all'); // 'all' | 'pending_verification' | 'verified' | 'rejected'
+  const [ordersSearchQuery, setOrdersSearchQuery] = useState('');
+  const [ordersStatusFilter, setOrdersStatusFilter] = useState('all'); // 'all' | 'pending' | 'confirmed' | 'baking' | 'out_for_delivery' | 'delivered' | 'cancelled' | 'cancel_requested'
+  const [ordersDateFilter, setOrdersDateFilter] = useState('all'); // 'all' | 'today' | 'yesterday' | '7days' | 'month'
+  const [ordersSortBy, setOrdersSortBy] = useState('newest'); // 'newest' | 'oldest' | 'price_high' | 'price_low' | 'customer'
   const [previewReceiptImage, setPreviewReceiptImage] = useState(null);
   const [previewReceiptOrder, setPreviewReceiptOrder] = useState(null);
   const [rejectingPaymentOrder, setRejectingPaymentOrder] = useState(null);
@@ -196,6 +238,19 @@ export function AdminPage() {
       } else {
         setOfferings([]);
       }
+
+      // Fetch Payment Configuration
+      try {
+        const paymentRes = await fetch(`${API_BASE_URL}/api/payment-config`);
+        if (paymentRes.ok) {
+          const pData = await paymentRes.json();
+          if (pData.success && pData.data) {
+            setPaymentSettings(pData.data);
+          }
+        }
+      } catch (pErr) {
+        console.warn('Error fetching payment config in admin:', pErr);
+      }
     } catch {
       setItems([]);
       setCategories([]);
@@ -204,6 +259,102 @@ export function AdminPage() {
       setLoading(false);
       fetchSystemStatus();
     }
+  };
+
+  // Handle Save Payment Settings
+  const handleSavePaymentSettings = async (e) => {
+    if (e) e.preventDefault();
+    setPaymentFormError('');
+
+    if (!paymentSettings.upiId || !paymentSettings.upiId.trim()) {
+      setPaymentFormError('A valid UPI ID is required (e.g. 9790983844@okaxis).');
+      return;
+    }
+
+    const cleanPhone = (paymentSettings.phoneNumber || '').replace(/\D/g, '');
+    if (!cleanPhone || cleanPhone.length !== 10) {
+      setPaymentFormError('Please enter a valid 10-digit mobile phone number for payment support.');
+      return;
+    }
+
+    setSavingPayment(true);
+    try {
+      const updated = await savePaymentConfig({
+        upiId: paymentSettings.upiId.trim(),
+        payeeName: (paymentSettings.payeeName || 'Pastry Paws').trim(),
+        phoneNumber: cleanPhone,
+        whatsappNumber: (paymentSettings.whatsappNumber || '919790983844').trim(),
+        qrCodeImage: paymentSettings.qrCodeImage || '',
+        qrCodePublicId: paymentSettings.qrCodePublicId || '',
+        qrMode: paymentSettings.qrMode || (paymentSettings.qrCodeImage ? 'custom' : 'dynamic'),
+        instructions: (paymentSettings.instructions || '').trim(),
+      });
+
+      setPaymentSettings(updated);
+      showToast('Payment QR & UPI settings updated across all checkout and tracking pages!', 'success');
+    } catch (err) {
+      setPaymentFormError(err.message || 'Failed to save payment settings.');
+      showToast(err.message || 'Failed to update payment settings.', 'error');
+    } finally {
+      setSavingPayment(false);
+    }
+  };
+
+  // Handle Standee QR Image Upload
+  const handleUploadQrImage = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setPaymentFormError('Please select a valid image file (PNG, JPG, JPEG, WEBP).');
+      return;
+    }
+
+    if (file.size > 12 * 1024 * 1024) {
+      setPaymentFormError('File size is too large. Please upload an image under 12MB.');
+      return;
+    }
+
+    setUploadingQrImage(true);
+    setPaymentFormError('');
+
+    const uploadFormData = new FormData();
+    uploadFormData.append('image', file);
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/upload`, {
+        method: 'POST',
+        body: uploadFormData,
+      });
+
+      const data = await res.json();
+      if (data.success && data.imageUrl) {
+        setPaymentSettings((prev) => ({
+          ...prev,
+          qrCodeImage: data.imageUrl,
+          qrCodePublicId: data.publicId || '',
+          qrMode: 'custom',
+        }));
+        showToast('Standee QR code uploaded! Click "Save Payment Settings" to publish.', 'success');
+      } else {
+        setPaymentFormError(data.message || 'Failed to upload QR image.');
+      }
+    } catch (err) {
+      setPaymentFormError('Error uploading QR code image: ' + err.message);
+    } finally {
+      setUploadingQrImage(false);
+    }
+  };
+
+  // Remove Standee QR Image
+  const handleRemoveQrImage = () => {
+    setPaymentSettings((prev) => ({
+      ...prev,
+      qrCodeImage: '',
+      qrCodePublicId: '',
+      qrMode: 'dynamic',
+    }));
+    showToast('Standee QR removed. QR mode switched to Dynamic NPCI QR.', 'info');
   };
 
   // Only fetch sensitive database items once authenticated
@@ -773,25 +924,178 @@ export function AdminPage() {
     }
   };
 
-  // Filtered Orders based on payment status tab
-  const filteredOrders = orders.filter((ord) => {
-    if (ordersPaymentFilter === 'all') return true;
-    if (ordersPaymentFilter === 'pending_verification') {
-      return ord.paymentStatus === 'pending_verification' || !ord.paymentStatus;
-    }
-    return ord.paymentStatus === ordersPaymentFilter;
-  });
+  // Filtered & Sorted Orders
+  const filteredOrders = useMemo(() => {
+    return orders
+      .filter((ord) => {
+        // Payment filter
+        if (ordersPaymentFilter !== 'all') {
+          if (ordersPaymentFilter === 'pending_verification') {
+            if (ord.paymentStatus !== 'pending_verification' && ord.paymentStatus) return false;
+          } else if (ord.paymentStatus !== ordersPaymentFilter) {
+            return false;
+          }
+        }
 
-  // Filtered Items
-  const filteredItems = items.filter((item) => {
-    const matchCat =
-      selectedCategoryFilter === 'All' || item.category === selectedCategoryFilter;
-    const matchQuery =
-      !searchFilter ||
-      item.title.toLowerCase().includes(searchFilter.toLowerCase()) ||
-      item.category.toLowerCase().includes(searchFilter.toLowerCase());
-    return matchCat && matchQuery;
-  });
+        // Fulfillment status filter
+        if (ordersStatusFilter !== 'all') {
+          if (ordersStatusFilter === 'cancel_requested') {
+            if (!ord.cancelRequested || ord.status === 'cancelled') return false;
+          } else if (ord.status !== ordersStatusFilter) {
+            return false;
+          }
+        }
+
+        // Search Query (Order ID, Customer, Phone, Transaction ID / UTR, Item Title, Delivery Address)
+        if (ordersSearchQuery.trim()) {
+          const q = ordersSearchQuery.toLowerCase().trim();
+          const matchId = (ord.orderId || '').toLowerCase().includes(q) || (ord._id || '').toLowerCase().includes(q);
+          const matchCust = (ord.customerName || '').toLowerCase().includes(q);
+          const matchPhone = (ord.customerPhone || '').includes(q);
+          const matchUtr = (ord.transactionId || '').toLowerCase().includes(q);
+          const matchItem = (ord.itemTitle || '').toLowerCase().includes(q);
+          const matchAddr = (ord.deliveryAddress || '').toLowerCase().includes(q);
+          if (!matchId && !matchCust && !matchPhone && !matchUtr && !matchItem && !matchAddr) {
+            return false;
+          }
+        }
+
+        // Date filter
+        if (ordersDateFilter !== 'all') {
+          const ordDate = new Date(ord.createdAt || Date.now());
+          const now = new Date();
+          if (ordersDateFilter === 'today') {
+            const isToday =
+              ordDate.getDate() === now.getDate() &&
+              ordDate.getMonth() === now.getMonth() &&
+              ordDate.getFullYear() === now.getFullYear();
+            if (!isToday) return false;
+          } else if (ordersDateFilter === 'yesterday') {
+            const yesterday = new Date(now);
+            yesterday.setDate(now.getDate() - 1);
+            const isYesterday =
+              ordDate.getDate() === yesterday.getDate() &&
+              ordDate.getMonth() === yesterday.getMonth() &&
+              ordDate.getFullYear() === yesterday.getFullYear();
+            if (!isYesterday) return false;
+          } else if (ordersDateFilter === '7days') {
+            const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            if (ordDate < sevenDaysAgo) return false;
+          } else if (ordersDateFilter === 'month') {
+            const isThisMonth =
+              ordDate.getMonth() === now.getMonth() &&
+              ordDate.getFullYear() === now.getFullYear();
+            if (!isThisMonth) return false;
+          }
+        }
+
+        return true;
+      })
+      .sort((a, b) => {
+        const dateA = new Date(a.createdAt || 0).getTime();
+        const dateB = new Date(b.createdAt || 0).getTime();
+        if (ordersSortBy === 'newest') return dateB - dateA;
+        if (ordersSortBy === 'oldest') return dateA - dateB;
+
+        const parsePrice = (priceStr) => {
+          if (!priceStr) return 0;
+          const num = String(priceStr).replace(/[^0-9.]/g, '');
+          return parseFloat(num) || 0;
+        };
+
+        if (ordersSortBy === 'price_high') return parsePrice(b.price) - parsePrice(a.price);
+        if (ordersSortBy === 'price_low') return parsePrice(a.price) - parsePrice(b.price);
+        if (ordersSortBy === 'customer') return (a.customerName || '').localeCompare(b.customerName || '');
+        return dateB - dateA;
+      });
+  }, [orders, ordersPaymentFilter, ordersStatusFilter, ordersSearchQuery, ordersDateFilter, ordersSortBy]);
+
+  // Filtered & Sorted Items
+  const filteredItems = useMemo(() => {
+    return items
+      .filter((item) => {
+        const matchCat =
+          selectedCategoryFilter === 'All' || item.category === selectedCategoryFilter;
+
+        let matchQuery = true;
+        if (searchFilter.trim()) {
+          const q = searchFilter.toLowerCase().trim();
+          matchQuery =
+            (item.title || '').toLowerCase().includes(q) ||
+            (item.category || '').toLowerCase().includes(q) ||
+            (item.description || '').toLowerCase().includes(q) ||
+            (item.badge || '').toLowerCase().includes(q);
+        }
+
+        let matchBadge = true;
+        if (selectedBadgeFilter !== 'All') {
+          matchBadge = (item.badge || '').toLowerCase() === selectedBadgeFilter.toLowerCase();
+        }
+
+        let matchFeatured = true;
+        if (selectedFeaturedFilter === 'featured') {
+          matchFeatured = Boolean(item.featured);
+        } else if (selectedFeaturedFilter === 'standard') {
+          matchFeatured = !item.featured;
+        }
+
+        return matchCat && matchQuery && matchBadge && matchFeatured;
+      })
+      .sort((a, b) => {
+        const getPrice = (it) => {
+          if (it.startingPrice) return it.startingPrice;
+          if (it.pricingDetails?.[0]?.price) {
+            const num = String(it.pricingDetails[0].price).replace(/[^0-9.]/g, '');
+            return parseFloat(num) || 0;
+          }
+          return 0;
+        };
+
+        if (itemsSortBy === 'title_asc') return (a.title || '').localeCompare(b.title || '');
+        if (itemsSortBy === 'title_desc') return (b.title || '').localeCompare(a.title || '');
+        if (itemsSortBy === 'price_asc') return getPrice(a) - getPrice(b);
+        if (itemsSortBy === 'price_desc') return getPrice(b) - getPrice(a);
+        return (b.featured ? 1 : 0) - (a.featured ? 1 : 0);
+      });
+  }, [items, selectedCategoryFilter, searchFilter, selectedBadgeFilter, selectedFeaturedFilter, itemsSortBy]);
+
+  // Filtered & Sorted Categories
+  const filteredCategories = useMemo(() => {
+    return categories
+      .filter((cat) => {
+        if (!categoriesSearchQuery.trim()) return true;
+        return (cat.name || '').toLowerCase().includes(categoriesSearchQuery.toLowerCase().trim());
+      })
+      .sort((a, b) => {
+        if (categoriesSortBy === 'name_asc') return a.name.localeCompare(b.name);
+        if (categoriesSortBy === 'name_desc') return b.name.localeCompare(a.name);
+        if (categoriesSortBy === 'items_high') {
+          const countA = items.filter((i) => i.category === a.name).length;
+          const countB = items.filter((i) => i.category === b.name).length;
+          return countB - countA;
+        }
+        return 0;
+      });
+  }, [categories, categoriesSearchQuery, categoriesSortBy, items]);
+
+  // Filtered & Sorted Offerings
+  const filteredOfferings = useMemo(() => {
+    return offerings
+      .filter((off) => {
+        if (!offeringsSearchQuery.trim()) return true;
+        const q = offeringsSearchQuery.toLowerCase().trim();
+        return (
+          (off.title || '').toLowerCase().includes(q) ||
+          (off.subtitle || '').toLowerCase().includes(q) ||
+          (off.description || '').toLowerCase().includes(q) ||
+          (off.accent || '').toLowerCase().includes(q)
+        );
+      })
+      .sort((a, b) => {
+        if (offeringsSortBy === 'title_asc') return (a.title || '').localeCompare(b.title || '');
+        return (parseInt(a.number, 10) || 0) - (parseInt(b.number, 10) || 0);
+      });
+  }, [offerings, offeringsSearchQuery, offeringsSortBy]);
 
   // Security Guard 1: Direct URL access to /admin without clicking portal link is blocked
   if (!isPortalVerified && !isAuthenticated) {
@@ -1097,6 +1401,17 @@ export function AdminPage() {
           </button>
 
           <button
+            onClick={() => setActiveTab('payment')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all shrink-0 whitespace-nowrap cursor-pointer ${activeTab === 'payment'
+              ? 'bg-[#7C3F27] text-[#FFF9F3] shadow-xs'
+              : 'bg-[#FFF9F3] text-[#7C3F27] hover:bg-[#FEEDDD] border border-[#D29C83]/30'
+              }`}
+          >
+            <CreditCard className="w-4 h-4" />
+            <span>Payment & QR Settings</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('database')}
             className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all shrink-0 whitespace-nowrap cursor-pointer ml-auto ${activeTab === 'database'
               ? 'bg-[#7C3F27] text-[#FFF9F3] shadow-xs'
@@ -1111,71 +1426,224 @@ export function AdminPage() {
         {/* TAB 1: MENU ITEMS (CARD-BASED RESPONSIVE UI) */}
         {activeTab === 'items' && (
           <div className="pt-5 space-y-4">
-            {/* Action Bar */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-1">
+            {/* Enhanced Multi-Filter Action Bar */}
+            <div className="bg-[#FFF9F3] p-4 rounded-2xl border border-[#D29C83]/30 shadow-2xs space-y-3">
+              <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+                {/* Search Bar with Clear Button */}
                 <div className="relative flex-1">
                   <Search className="w-4 h-4 text-[#A66D54] absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
                     value={searchFilter}
                     onChange={(e) => setSearchFilter(e.target.value)}
-                    placeholder="Search by title or category..."
-                    className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#D29C83]/40 bg-[#FFF9F3] text-[#411C10] placeholder:text-[#A66D54]/50 focus:outline-none focus:border-[#7C3F27]"
+                    placeholder="Search creations by title, description, or badge..."
+                    className="w-full pl-9 pr-8 py-2 text-xs rounded-xl border border-[#D29C83]/40 bg-[#FEEDDD]/30 text-[#411C10] placeholder:text-[#A66D54]/60 focus:outline-none focus:border-[#7C3F27]"
                   />
+                  {searchFilter && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchFilter('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#A66D54] hover:text-[#411C10] p-1"
+                      title="Clear search"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
+
+                {/* Add New Creation CTA */}
+                <button
+                  onClick={() => {
+                    setEditingItem(null);
+                    setItemForm({
+                      title: '',
+                      category: categories[0]?.name || 'Cakes',
+                      description: '',
+                      image: '',
+                      cloudinaryPublicId: '',
+                      badge: '',
+                      featured: false,
+                      pricingDetails: [
+                        { size: '250gm', price: '₹199/-' },
+                        { size: '500gm', price: '₹399/-' },
+                      ],
+                    });
+                    setIsItemModalOpen(true);
+                  }}
+                  className="w-full lg:w-auto inline-flex items-center justify-center gap-2 bg-[#7C3F27] text-[#FEEDDD] hover:bg-[#5E2B19] py-2 px-4 rounded-xl text-xs sm:text-sm font-medium transition-all shadow-xs cursor-pointer shrink-0"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add New Creation</span>
+                </button>
+              </div>
+
+              {/* Filter Controls Row */}
+              <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-[#D29C83]/20">
+                <div className="inline-flex items-center gap-1.5 text-xs text-[#7C3F27] font-semibold mr-1">
+                  <Filter className="w-3.5 h-3.5 text-[#7C3F27]" />
+                  <span>Filters:</span>
+                </div>
+
+                {/* Category Filter */}
                 <select
                   value={selectedCategoryFilter}
                   onChange={(e) => setSelectedCategoryFilter(e.target.value)}
-                  className="text-xs px-3 py-2 rounded-xl border border-[#D29C83]/40 bg-[#FFF9F3] text-[#411C10] focus:outline-none focus:border-[#7C3F27]"
+                  className="text-xs px-2.5 py-1.5 rounded-xl border border-[#D29C83]/40 bg-[#FEEDDD]/40 text-[#411C10] focus:outline-none focus:border-[#7C3F27]"
                 >
-                  <option value="All">All Categories</option>
-                  {categories.map((c) => (
-                    <option key={c.name} value={c.name}>
-                      {c.name}
-                    </option>
-                  ))}
+                  <option value="All">All Categories ({items.length})</option>
+                  {categories.map((c) => {
+                    const count = items.filter((i) => i.category === c.name).length;
+                    return (
+                      <option key={c.name} value={c.name}>
+                        {c.name} ({count})
+                      </option>
+                    );
+                  })}
                 </select>
+
+                {/* Badge Filter */}
+                <select
+                  value={selectedBadgeFilter}
+                  onChange={(e) => setSelectedBadgeFilter(e.target.value)}
+                  className="text-xs px-2.5 py-1.5 rounded-xl border border-[#D29C83]/40 bg-[#FEEDDD]/40 text-[#411C10] focus:outline-none focus:border-[#7C3F27]"
+                >
+                  <option value="All">All Badges</option>
+                  <option value="Bestseller">Bestseller</option>
+                  <option value="Signature">Signature</option>
+                  <option value="Chef's Special">Chef's Special</option>
+                  <option value="Organic">Organic</option>
+                  <option value="Gluten Free">Gluten Free</option>
+                  <option value="Eggless">Eggless</option>
+                </select>
+
+                {/* Featured Status Filter */}
+                <select
+                  value={selectedFeaturedFilter}
+                  onChange={(e) => setSelectedFeaturedFilter(e.target.value)}
+                  className="text-xs px-2.5 py-1.5 rounded-xl border border-[#D29C83]/40 bg-[#FEEDDD]/40 text-[#411C10] focus:outline-none focus:border-[#7C3F27]"
+                >
+                  <option value="All">All Items</option>
+                  <option value="featured">Featured Only ⭐</option>
+                  <option value="standard">Standard Items</option>
+                </select>
+
+                {/* Sort By */}
+                <div className="flex items-center gap-1.5 ml-auto">
+                  <ArrowUpDown className="w-3.5 h-3.5 text-[#A66D54]" />
+                  <select
+                    value={itemsSortBy}
+                    onChange={(e) => setItemsSortBy(e.target.value)}
+                    className="text-xs px-2.5 py-1.5 rounded-xl border border-[#D29C83]/40 bg-[#FEEDDD]/40 text-[#411C10] focus:outline-none focus:border-[#7C3F27]"
+                  >
+                    <option value="default">Featured First (Default)</option>
+                    <option value="title_asc">Title: A to Z</option>
+                    <option value="title_desc">Title: Z to A</option>
+                    <option value="price_asc">Price: Low to High</option>
+                    <option value="price_desc">Price: High to Low</option>
+                  </select>
+                </div>
               </div>
 
-              <button
-                onClick={() => {
-                  setEditingItem(null);
-                  setItemForm({
-                    title: '',
-                    category: categories[0]?.name || 'Cakes',
-                    description: '',
-                    image: '',
-                    cloudinaryPublicId: '',
-                    badge: '',
-                    featured: false,
-                    pricingDetails: [
-                      { size: '250gm', price: '₹199/-' },
-                      { size: '500gm', price: '₹399/-' },
-                    ],
-                  });
-                  setIsItemModalOpen(true);
-                }}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-[#7C3F27] text-[#FEEDDD] hover:bg-[#5E2B19] py-2.5 px-4 rounded-xl text-xs sm:text-sm font-medium transition-all shadow-xs cursor-pointer shrink-0"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Add New Creation</span>
-              </button>
+              {/* Active Filter Pills & Results Count */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-2 text-[11px] text-[#7C3F27]">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="font-semibold text-[#411C10]">
+                    Showing {filteredItems.length} of {items.length} creations
+                  </span>
+
+                  {selectedCategoryFilter !== 'All' && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#FEEDDD] text-[#7C3F27] border border-[#D29C83]/40">
+                      <span>Category: {selectedCategoryFilter}</span>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedCategoryFilter('All')}
+                        className="hover:text-rose-600 cursor-pointer"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  )}
+
+                  {selectedBadgeFilter !== 'All' && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#FEEDDD] text-[#7C3F27] border border-[#D29C83]/40">
+                      <span>Badge: {selectedBadgeFilter}</span>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedBadgeFilter('All')}
+                        className="hover:text-rose-600 cursor-pointer"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  )}
+
+                  {selectedFeaturedFilter !== 'All' && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#FEEDDD] text-[#7C3F27] border border-[#D29C83]/40">
+                      <span>{selectedFeaturedFilter === 'featured' ? 'Featured Only' : 'Standard'}</span>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedFeaturedFilter('All')}
+                        className="hover:text-rose-600 cursor-pointer"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  )}
+
+                  {searchFilter && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#FEEDDD] text-[#7C3F27] border border-[#D29C83]/40">
+                      <span>Search: "{searchFilter}"</span>
+                      <button
+                        type="button"
+                        onClick={() => setSearchFilter('')}
+                        className="hover:text-rose-600 cursor-pointer"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  )}
+                </div>
+
+                {(selectedCategoryFilter !== 'All' ||
+                  selectedBadgeFilter !== 'All' ||
+                  selectedFeaturedFilter !== 'All' ||
+                  searchFilter ||
+                  itemsSortBy !== 'default') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchFilter('');
+                      setSelectedCategoryFilter('All');
+                      setSelectedBadgeFilter('All');
+                      setSelectedFeaturedFilter('All');
+                      setItemsSortBy('default');
+                    }}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#7C3F27] hover:text-[#411C10] underline cursor-pointer"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    <span>Reset All Filters</span>
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Responsive Card Grid (Nothing goes off-screen) */}
             {filteredItems.length === 0 ? (
               <div className="text-center py-12 bg-[#FFF9F3] rounded-2xl border border-[#D29C83]/30 px-4">
                 <ShoppingBag className="w-8 h-8 text-[#D29C83] mx-auto mb-2" />
-                <p className="font-serif text-base text-[#411C10]">No creations match your search.</p>
+                <p className="font-serif text-base text-[#411C10]">No creations match your filter criteria.</p>
                 <button
                   onClick={() => {
                     setSearchFilter('');
                     setSelectedCategoryFilter('All');
+                    setSelectedBadgeFilter('All');
+                    setSelectedFeaturedFilter('All');
+                    setItemsSortBy('default');
                   }}
-                  className="mt-2 text-xs text-[#7C3F27] underline cursor-pointer"
+                  className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#FEEDDD] text-[#7C3F27] hover:bg-[#D29C83]/30 text-xs font-semibold cursor-pointer transition-colors"
                 >
-                  Clear filters
+                  <RotateCcw className="w-3 h-3" />
+                  <span>Clear All Filters</span>
                 </button>
               </div>
             ) : (
@@ -1316,35 +1784,87 @@ export function AdminPage() {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
-              {categories.map((cat, idx) => (
-                <div
-                  key={cat.name}
-                  className="p-4 rounded-2xl bg-[#FFF9F3] border border-[#D29C83]/30 flex items-center justify-between shadow-2xs hover:shadow-xs transition-shadow"
+            {/* Category Search & Sort Bar */}
+            <div className="bg-[#FFF9F3] p-3 rounded-2xl border border-[#D29C83]/30 shadow-2xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-[#A66D54] absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={categoriesSearchQuery}
+                  onChange={(e) => setCategoriesSearchQuery(e.target.value)}
+                  placeholder="Search categories by name..."
+                  className="w-full pl-9 pr-8 py-2 text-xs rounded-xl border border-[#D29C83]/40 bg-[#FEEDDD]/30 text-[#411C10] placeholder:text-[#A66D54]/60 focus:outline-none focus:border-[#7C3F27]"
+                />
+                {categoriesSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setCategoriesSearchQuery('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#A66D54] hover:text-[#411C10] p-1"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-1.5 self-end sm:self-auto">
+                <ArrowUpDown className="w-3.5 h-3.5 text-[#A66D54]" />
+                <select
+                  value={categoriesSortBy}
+                  onChange={(e) => setCategoriesSortBy(e.target.value)}
+                  className="text-xs px-2.5 py-2 rounded-xl border border-[#D29C83]/40 bg-[#FEEDDD]/40 text-[#411C10] focus:outline-none focus:border-[#7C3F27]"
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="w-7 h-7 rounded-full bg-[#FEEDDD] text-[#7C3F27] text-xs font-bold flex items-center justify-center border border-[#D29C83]/30">
-                      {idx + 1}
-                    </span>
-                    <div>
-                      <h4 className="font-medium text-sm text-[#411C10]">{cat.name}</h4>
-                      <span className="text-[10px] text-[#A66D54]">
-                        {items.filter((i) => i.category === cat.name).length} items listed
-                      </span>
-                    </div>
-                  </div>
-                  {cat._id && (
-                    <button
-                      onClick={() => setDeletingCategory(cat)}
-                      className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                      title="Delete category"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
-              ))}
+                  <option value="default">Default Order</option>
+                  <option value="name_asc">Name: A to Z</option>
+                  <option value="name_desc">Name: Z to A</option>
+                  <option value="items_high">Most Items First</option>
+                </select>
+              </div>
             </div>
+
+            {filteredCategories.length === 0 ? (
+              <div className="text-center py-10 bg-[#FFF9F3] rounded-2xl border border-[#D29C83]/30 px-4">
+                <p className="font-serif text-base text-[#411C10]">No categories match your search.</p>
+                <button
+                  onClick={() => {
+                    setCategoriesSearchQuery('');
+                    setCategoriesSortBy('default');
+                  }}
+                  className="mt-2 text-xs text-[#7C3F27] underline cursor-pointer"
+                >
+                  Reset filters
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
+                {filteredCategories.map((cat, idx) => (
+                  <div
+                    key={cat.name}
+                    className="p-4 rounded-2xl bg-[#FFF9F3] border border-[#D29C83]/30 flex items-center justify-between shadow-2xs hover:shadow-xs transition-shadow"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="w-7 h-7 rounded-full bg-[#FEEDDD] text-[#7C3F27] text-xs font-bold flex items-center justify-center border border-[#D29C83]/30">
+                        {idx + 1}
+                      </span>
+                      <div>
+                        <h4 className="font-medium text-sm text-[#411C10]">{cat.name}</h4>
+                        <span className="text-[10px] text-[#A66D54]">
+                          {items.filter((i) => i.category === cat.name).length} items listed
+                        </span>
+                      </div>
+                    </div>
+                    {cat._id && (
+                      <button
+                        onClick={() => setDeletingCategory(cat)}
+                        className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                        title="Delete category"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -1375,8 +1895,57 @@ export function AdminPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {offerings.map((off, idx) => (
+            {/* Offerings Search & Sort Bar */}
+            <div className="bg-[#FFF9F3] p-3 rounded-2xl border border-[#D29C83]/30 shadow-2xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-[#A66D54] absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={offeringsSearchQuery}
+                  onChange={(e) => setOfferingsSearchQuery(e.target.value)}
+                  placeholder="Search specialties by title, description, or accent..."
+                  className="w-full pl-9 pr-8 py-2 text-xs rounded-xl border border-[#D29C83]/40 bg-[#FEEDDD]/30 text-[#411C10] placeholder:text-[#A66D54]/60 focus:outline-none focus:border-[#7C3F27]"
+                />
+                {offeringsSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setOfferingsSearchQuery('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#A66D54] hover:text-[#411C10] p-1"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-1.5 self-end sm:self-auto">
+                <ArrowUpDown className="w-3.5 h-3.5 text-[#A66D54]" />
+                <select
+                  value={offeringsSortBy}
+                  onChange={(e) => setOfferingsSortBy(e.target.value)}
+                  className="text-xs px-2.5 py-2 rounded-xl border border-[#D29C83]/40 bg-[#FEEDDD]/40 text-[#411C10] focus:outline-none focus:border-[#7C3F27]"
+                >
+                  <option value="default">Sequence Order (01-04)</option>
+                  <option value="title_asc">Title: A to Z</option>
+                </select>
+              </div>
+            </div>
+
+            {filteredOfferings.length === 0 ? (
+              <div className="text-center py-10 bg-[#FFF9F3] rounded-2xl border border-[#D29C83]/30 px-4">
+                <p className="font-serif text-base text-[#411C10]">No specialties match your search.</p>
+                <button
+                  onClick={() => {
+                    setOfferingsSearchQuery('');
+                    setOfferingsSortBy('default');
+                  }}
+                  className="mt-2 text-xs text-[#7C3F27] underline cursor-pointer"
+                >
+                  Reset filters
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {filteredOfferings.map((off, idx) => (
                 <div
                   key={off._id || off.id || idx}
                   className="p-4 rounded-2xl bg-[#FFF9F3] border border-[#D29C83]/30 shadow-2xs hover:shadow-xs transition-shadow flex flex-col justify-between"
@@ -1446,7 +2015,8 @@ export function AdminPage() {
                   </div>
                 </div>
               ))}
-            </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -1513,19 +2083,190 @@ export function AdminPage() {
               </div>
             </div>
 
+            {/* Comprehensive Orders Filter Toolbar */}
+            <div className="bg-[#FFF9F3] p-4 rounded-2xl border border-[#D29C83]/30 shadow-2xs space-y-3">
+              {/* Row 1: Search bar */}
+              <div className="relative">
+                <Search className="w-4 h-4 text-[#A66D54] absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={ordersSearchQuery}
+                  onChange={(e) => setOrdersSearchQuery(e.target.value)}
+                  placeholder="Search orders by Order ID (PP-...), Customer Name, Mobile Number, UTR / TxID, or Item..."
+                  className="w-full pl-10 pr-9 py-2.5 text-xs sm:text-sm rounded-xl border border-[#D29C83]/40 bg-[#FEEDDD]/30 text-[#411C10] placeholder:text-[#A66D54]/60 focus:outline-none focus:border-[#7C3F27]"
+                />
+                {ordersSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setOrdersSearchQuery('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#A66D54] hover:text-[#411C10] p-1 cursor-pointer"
+                    title="Clear search"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+
+              {/* Row 2: Select Filters */}
+              <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-[#D29C83]/20">
+                <div className="inline-flex items-center gap-1 text-xs text-[#7C3F27] font-semibold mr-1">
+                  <Filter className="w-3.5 h-3.5 text-[#7C3F27]" />
+                  <span>Filters:</span>
+                </div>
+
+                {/* Fulfillment Status */}
+                <select
+                  value={ordersStatusFilter}
+                  onChange={(e) => setOrdersStatusFilter(e.target.value)}
+                  className="text-xs px-2.5 py-1.5 rounded-xl border border-[#D29C83]/40 bg-[#FEEDDD]/40 text-[#411C10] focus:outline-none focus:border-[#7C3F27]"
+                >
+                  <option value="all">All Fulfillment Statuses</option>
+                  <option value="pending">🕒 Order Received</option>
+                  <option value="confirmed">📋 Confirmed</option>
+                  <option value="baking">👨‍🍳 Baking in Oven</option>
+                  <option value="out_for_delivery">🚚 Out for Delivery</option>
+                  <option value="delivered">✅ Delivered</option>
+                  <option value="cancelled">❌ Cancelled</option>
+                  <option value="cancel_requested">⚠️ Cancellation Requested</option>
+                </select>
+
+                {/* Date Filter */}
+                <div className="inline-flex items-center gap-1">
+                  <Calendar className="w-3.5 h-3.5 text-[#A66D54]" />
+                  <select
+                    value={ordersDateFilter}
+                    onChange={(e) => setOrdersDateFilter(e.target.value)}
+                    className="text-xs px-2.5 py-1.5 rounded-xl border border-[#D29C83]/40 bg-[#FEEDDD]/40 text-[#411C10] focus:outline-none focus:border-[#7C3F27]"
+                  >
+                    <option value="all">All Time</option>
+                    <option value="today">Today</option>
+                    <option value="yesterday">Yesterday</option>
+                    <option value="7days">Last 7 Days</option>
+                    <option value="month">This Month</option>
+                  </select>
+                </div>
+
+                {/* Sort By */}
+                <div className="flex items-center gap-1.5 ml-auto">
+                  <ArrowUpDown className="w-3.5 h-3.5 text-[#A66D54]" />
+                  <select
+                    value={ordersSortBy}
+                    onChange={(e) => setOrdersSortBy(e.target.value)}
+                    className="text-xs px-2.5 py-1.5 rounded-xl border border-[#D29C83]/40 bg-[#FEEDDD]/40 text-[#411C10] focus:outline-none focus:border-[#7C3F27]"
+                  >
+                    <option value="newest">Newest Placed First</option>
+                    <option value="oldest">Oldest Placed First</option>
+                    <option value="price_high">Amount: High to Low</option>
+                    <option value="price_low">Amount: Low to High</option>
+                    <option value="customer">Customer Name: A to Z</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Row 3: Active Filters Summary & Reset */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-2 text-[11px] text-[#7C3F27]">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="font-semibold text-[#411C10]">
+                    Showing {filteredOrders.length} of {orders.length} orders
+                  </span>
+
+                  {ordersPaymentFilter !== 'all' && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#FEEDDD] text-[#7C3F27] border border-[#D29C83]/40 font-medium">
+                      <span>Payment: {ordersPaymentFilter.replace('_', ' ')}</span>
+                      <button
+                        type="button"
+                        onClick={() => setOrdersPaymentFilter('all')}
+                        className="hover:text-rose-600 cursor-pointer"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  )}
+
+                  {ordersStatusFilter !== 'all' && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#FEEDDD] text-[#7C3F27] border border-[#D29C83]/40 font-medium">
+                      <span>Status: {ordersStatusFilter.replace('_', ' ')}</span>
+                      <button
+                        type="button"
+                        onClick={() => setOrdersStatusFilter('all')}
+                        className="hover:text-rose-600 cursor-pointer"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  )}
+
+                  {ordersDateFilter !== 'all' && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#FEEDDD] text-[#7C3F27] border border-[#D29C83]/40 font-medium">
+                      <span>Date: {ordersDateFilter}</span>
+                      <button
+                        type="button"
+                        onClick={() => setOrdersDateFilter('all')}
+                        className="hover:text-rose-600 cursor-pointer"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  )}
+
+                  {ordersSearchQuery && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#FEEDDD] text-[#7C3F27] border border-[#D29C83]/40 font-medium">
+                      <span>Search: "{ordersSearchQuery}"</span>
+                      <button
+                        type="button"
+                        onClick={() => setOrdersSearchQuery('')}
+                        className="hover:text-rose-600 cursor-pointer"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  )}
+                </div>
+
+                {(ordersPaymentFilter !== 'all' ||
+                  ordersStatusFilter !== 'all' ||
+                  ordersDateFilter !== 'all' ||
+                  ordersSearchQuery ||
+                  ordersSortBy !== 'newest') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOrdersPaymentFilter('all');
+                      setOrdersStatusFilter('all');
+                      setOrdersDateFilter('all');
+                      setOrdersSearchQuery('');
+                      setOrdersSortBy('newest');
+                    }}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#7C3F27] hover:text-[#411C10] underline cursor-pointer"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    <span>Reset All Filters</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
             {filteredOrders.length === 0 ? (
               <div className="text-center py-12 bg-[#FFF9F3] rounded-2xl border border-[#D29C83]/30 max-w-md mx-auto px-4">
                 <ShoppingBag className="w-10 h-10 text-[#D29C83] mx-auto mb-2" />
-                <p className="font-serif text-lg text-[#411C10]">
-                  {ordersPaymentFilter === 'all'
-                    ? 'No orders received yet'
-                    : `No orders in "${ordersPaymentFilter.replace('_', ' ')}" status`}
-                </p>
+                <p className="font-serif text-lg text-[#411C10]">No orders match your filter criteria</p>
                 <p className="text-xs text-[#7C3F27] mt-1">
-                  {ordersPaymentFilter === 'all'
-                    ? "When customers click 'Order Now' on the menu, their order records will appear here."
-                    : 'Switch back to "All" to view other orders.'}
+                  Try adjusting your search query, status filters, or date range.
                 </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOrdersPaymentFilter('all');
+                    setOrdersStatusFilter('all');
+                    setOrdersDateFilter('all');
+                    setOrdersSearchQuery('');
+                    setOrdersSortBy('newest');
+                  }}
+                  className="mt-3 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#FEEDDD] text-[#7C3F27] hover:bg-[#D29C83]/30 text-xs font-semibold cursor-pointer transition-colors"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Clear All Filters</span>
+                </button>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1979,6 +2720,512 @@ export function AdminPage() {
                   <span className="text-[#411C10]">
                     Auto-format (WebP / AVIF), dynamic thumbnail resizing
                   </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 5: PAYMENT & UPI QR CONFIGURATION */}
+        {activeTab === 'payment' && (
+          <div className="pt-5 space-y-6 max-w-6xl">
+            {/* Header with Title and Save Button */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-[#FFF9F3] p-5 rounded-2xl border border-[#D29C83]/30 shadow-2xs">
+              <div>
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-[#7C3F27] text-[#FEEDDD] flex items-center justify-center">
+                    <CreditCard className="w-4 h-4" />
+                  </div>
+                  <h3 className="font-serif text-xl text-[#411C10]">Payment & UPI QR Settings</h3>
+                </div>
+                <p className="text-xs text-[#7C3F27] mt-1 max-w-2xl leading-relaxed">
+                  Update your official bakery UPI ID, mobile phone number, and payment QR code. Changes sync instantly across the customer order checkout modal, order tracking, and customer PDF invoices.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={fetchData}
+                  disabled={paymentLoading || savingPayment}
+                  className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 bg-[#FEEDDD]/60 hover:bg-[#FEEDDD] text-[#7C3F27] border border-[#D29C83]/30 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-2xs"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${paymentLoading ? 'animate-spin' : ''}`} />
+                  <span>Reload</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleSavePaymentSettings}
+                  disabled={savingPayment}
+                  className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 bg-[#7C3F27] hover:bg-[#5E2B19] text-[#FEEDDD] px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-md hover:shadow-lg active:scale-95 cursor-pointer disabled:opacity-60"
+                >
+                  {savingPayment ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Saving Changes...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      <span>Save Payment Settings</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Error Message if any */}
+            {paymentFormError && (
+              <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-300 text-rose-900 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                <span>{paymentFormError}</span>
+              </div>
+            )}
+
+            {/* 2-Column Responsive Layout: Left Form, Right Live Customer Checkout Preview */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              {/* LEFT COLUMN: EDIT FORM (7 cols) */}
+              <div className="lg:col-span-7 space-y-5">
+                {/* CARD 1: OFFICIAL UPI & CONTACT NUMBERS */}
+                <div className="bg-[#FFF9F3] p-5 sm:p-6 rounded-2xl border border-[#D29C83]/30 shadow-2xs space-y-4">
+                  <div className="flex items-center gap-2 border-b border-[#D29C83]/20 pb-3">
+                    <Smartphone className="w-4 h-4 text-[#7C3F27]" />
+                    <h4 className="font-serif text-base text-[#411C10] font-medium">
+                      Official UPI ID & Contact Details
+                    </h4>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* UPI ID */}
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-semibold text-[#411C10] mb-1">
+                        Bakery UPI ID <span className="text-rose-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          required
+                          value={paymentSettings.upiId || ''}
+                          onChange={(e) => {
+                            setPaymentSettings({ ...paymentSettings, upiId: e.target.value });
+                            if (paymentFormError) setPaymentFormError('');
+                          }}
+                          placeholder="e.g. 9790983844@okaxis or pastrypaws@oksbi"
+                          className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-mono font-medium rounded-xl border border-[#D29C83]/40 bg-[#FFFDF9] text-[#411C10] focus:outline-none focus:border-[#7C3F27]"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (paymentSettings.upiId) {
+                              navigator.clipboard.writeText(paymentSettings.upiId);
+                              setCopiedAdminUpi(true);
+                              setTimeout(() => setCopiedAdminUpi(false), 2000);
+                            }
+                          }}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-[#7C3F27] hover:bg-[#FEEDDD] px-2 py-1 rounded-md transition-colors"
+                        >
+                          {copiedAdminUpi ? 'Copied!' : 'Copy'}
+                        </button>
+                      </div>
+                      <p className="text-[10px] text-[#A66D54] mt-1">
+                        Payments from Google Pay, PhonePe, Paytm, and BHIM will be directed to this UPI handle.
+                      </p>
+                    </div>
+
+                    {/* Payee / Merchant Name */}
+                    <div>
+                      <label className="block text-xs font-semibold text-[#411C10] mb-1">
+                        Payee / Business Name <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={paymentSettings.payeeName || ''}
+                        onChange={(e) =>
+                          setPaymentSettings({ ...paymentSettings, payeeName: e.target.value })
+                        }
+                        placeholder="e.g. Pastry Paws"
+                        className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-[#D29C83]/40 bg-[#FFFDF9] text-[#411C10] focus:outline-none focus:border-[#7C3F27]"
+                      />
+                      <p className="text-[10px] text-[#A66D54] mt-1">
+                        The recipient name displayed in banking apps.
+                      </p>
+                    </div>
+
+                    {/* Payment Phone Number */}
+                    <div>
+                      <label className="block text-xs font-semibold text-[#411C10] mb-1">
+                        Payment Mobile Number <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="tel"
+                        required
+                        value={paymentSettings.phoneNumber || ''}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                          setPaymentSettings({ ...paymentSettings, phoneNumber: val });
+                        }}
+                        placeholder="e.g. 9790983844"
+                        className="w-full px-3.5 py-2.5 text-xs font-mono rounded-xl border border-[#D29C83]/40 bg-[#FFFDF9] text-[#411C10] focus:outline-none focus:border-[#7C3F27]"
+                      />
+                      <p className="text-[10px] text-[#A66D54] mt-1">
+                        Shown to customers if they need payment assistance.
+                      </p>
+                    </div>
+
+                    {/* WhatsApp Business Number */}
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-semibold text-[#411C10] mb-1">
+                        WhatsApp Confirmation Number (with Country Code)
+                      </label>
+                      <input
+                        type="tel"
+                        value={paymentSettings.whatsappNumber || ''}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, '');
+                          setPaymentSettings({ ...paymentSettings, whatsappNumber: val });
+                        }}
+                        placeholder="e.g. 919790983844"
+                        className="w-full px-3.5 py-2.5 text-xs font-mono rounded-xl border border-[#D29C83]/40 bg-[#FFFDF9] text-[#411C10] focus:outline-none focus:border-[#7C3F27]"
+                      />
+                      <p className="text-[10px] text-[#A66D54] mt-1">
+                        Customers receive pre-formatted order summary links targeting this WhatsApp chat.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* CARD 2: QR CODE MODE & STANDEE IMAGE UPLOAD */}
+                <div className="bg-[#FFF9F3] p-5 sm:p-6 rounded-2xl border border-[#D29C83]/30 shadow-2xs space-y-4">
+                  <div className="flex items-center gap-2 border-b border-[#D29C83]/20 pb-3">
+                    <QrCode className="w-4 h-4 text-[#7C3F27]" />
+                    <h4 className="font-serif text-base text-[#411C10] font-medium">
+                      Payment QR Code Configuration
+                    </h4>
+                  </div>
+
+                  {/* QR Mode Switcher */}
+                  <div>
+                    <label className="block text-xs font-semibold text-[#411C10] mb-2">
+                      Preferred QR Code Display Mode
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setPaymentSettings({ ...paymentSettings, qrMode: 'custom' })}
+                        className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                          paymentSettings.qrMode === 'custom'
+                            ? 'bg-[#FEEDDD] border-[#7C3F27] shadow-xs'
+                            : 'bg-[#FFFDF9] border-[#D29C83]/30 hover:bg-[#FEEDDD]/40'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-semibold text-xs text-[#411C10]">
+                            Bakery Standee QR
+                          </span>
+                          <span
+                            className={`w-3 h-3 rounded-full border ${
+                              paymentSettings.qrMode === 'custom'
+                                ? 'bg-[#7C3F27] border-[#7C3F27]'
+                                : 'border-[#D29C83]'
+                            }`}
+                          />
+                        </div>
+                        <p className="text-[11px] text-[#7C3F27]/90 leading-tight">
+                          Show the official physical GPay/PhonePe sticker image you upload below.
+                        </p>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPaymentSettings({ ...paymentSettings, qrMode: 'dynamic' })
+                        }
+                        className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                          paymentSettings.qrMode === 'dynamic'
+                            ? 'bg-[#FEEDDD] border-[#7C3F27] shadow-xs'
+                            : 'bg-[#FFFDF9] border-[#D29C83]/30 hover:bg-[#FEEDDD]/40'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-semibold text-xs text-[#411C10]">
+                            Dynamic NPCI QR (Auto-Amount)
+                          </span>
+                          <span
+                            className={`w-3 h-3 rounded-full border ${
+                              paymentSettings.qrMode === 'dynamic'
+                                ? 'bg-[#7C3F27] border-[#7C3F27]'
+                                : 'border-[#D29C83]'
+                            }`}
+                          />
+                        </div>
+                        <p className="text-[11px] text-[#7C3F27]/90 leading-tight">
+                          Automatically generates a QR code encoding the exact cake price per order.
+                        </p>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Standee QR Image Upload & Preview Box */}
+                  <div className="pt-2 border-t border-[#D29C83]/20 space-y-3">
+                    <label className="block text-xs font-semibold text-[#411C10]">
+                      Official Physical QR Standee Image
+                    </label>
+
+                    {paymentSettings.qrCodeImage ? (
+                      <div className="p-4 rounded-2xl bg-[#FEEDDD]/40 border border-[#D29C83]/40 flex flex-col sm:flex-row items-center gap-4">
+                        <div className="relative group shrink-0">
+                          <img
+                            src={paymentSettings.qrCodeImage}
+                            alt="Bakery Standee QR"
+                            className="w-28 h-28 object-contain rounded-xl bg-white p-2 border border-[#D29C83]/40 shadow-xs"
+                          />
+                          <a
+                            href={paymentSettings.qrCodeImage}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="absolute inset-0 bg-[#2C1810]/60 rounded-xl opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity text-xs gap-1"
+                          >
+                            <Maximize2 className="w-4 h-4" />
+                            <span>View</span>
+                          </a>
+                        </div>
+
+                        <div className="flex-1 space-y-2 text-center sm:text-left">
+                          <div className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>Official Standee QR Active</span>
+                          </div>
+                          <p className="text-[11px] text-[#7C3F27] leading-relaxed">
+                            This QR sticker image is ready and will pop up for customers during checkout.
+                          </p>
+
+                          <div className="flex items-center justify-center sm:justify-start gap-2 pt-1">
+                            <label className="inline-flex items-center gap-1.5 bg-[#FFF9F3] hover:bg-[#FEEDDD] text-[#7C3F27] border border-[#D29C83]/40 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-2xs">
+                              <Upload className="w-3.5 h-3.5" />
+                              <span>{uploadingQrImage ? 'Uploading...' : 'Replace Image'}</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleUploadQrImage}
+                                disabled={uploadingQrImage}
+                                className="hidden"
+                              />
+                            </label>
+
+                            <button
+                              type="button"
+                              onClick={handleRemoveQrImage}
+                              className="inline-flex items-center gap-1 text-xs text-rose-700 hover:text-rose-900 font-semibold px-2 py-1.5 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Remove</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <label className="border-2 border-dashed border-[#D29C83]/60 hover:border-[#7C3F27] bg-[#FFFDF9] hover:bg-[#FEEDDD]/40 rounded-2xl p-5 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all text-center">
+                        {uploadingQrImage ? (
+                          <div className="flex flex-col items-center gap-2 py-3">
+                            <RefreshCw className="w-6 h-6 text-[#7C3F27] animate-spin" />
+                            <span className="text-xs font-semibold text-[#7C3F27]">
+                              Uploading and optimizing QR standee image...
+                            </span>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="w-10 h-10 rounded-full bg-[#FEEDDD] text-[#7C3F27] flex items-center justify-center border border-[#D29C83]/30 shadow-2xs">
+                              <Upload className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <span className="text-xs font-semibold text-[#411C10] block">
+                                Click or tap to upload bakery QR code photo / standee
+                              </span>
+                              <span className="text-[10px] text-[#A66D54] block mt-0.5">
+                                Google Pay, PhonePe, Paytm, BHIM, or bank QR sticker (PNG, JPG, WEBP)
+                              </span>
+                            </div>
+                          </>
+                        )}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleUploadQrImage}
+                          disabled={uploadingQrImage}
+                          className="hidden"
+                        />
+                      </label>
+                    )}
+                  </div>
+                </div>
+
+                {/* CARD 3: CUSTOMER INSTRUCTIONS / NOTICE */}
+                <div className="bg-[#FFF9F3] p-5 sm:p-6 rounded-2xl border border-[#D29C83]/30 shadow-2xs space-y-3">
+                  <label className="block text-xs font-semibold text-[#411C10]">
+                    Payment Instructions / Customer Guide
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={paymentSettings.instructions || ''}
+                    onChange={(e) =>
+                      setPaymentSettings({ ...paymentSettings, instructions: e.target.value })
+                    }
+                    placeholder="e.g. Pay using Google Pay, PhonePe, Paytm, or BHIM. After paying, upload your payment receipt screenshot and enter your 12-digit UTR number."
+                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-[#D29C83]/40 bg-[#FFFDF9] text-[#411C10] focus:outline-none focus:border-[#7C3F27]"
+                  />
+                  <p className="text-[10px] text-[#A66D54]">
+                    This note will be shown to customers right above the screenshot proof upload field.
+                  </p>
+                </div>
+              </div>
+
+              {/* RIGHT COLUMN: LIVE REAL-TIME CHECKOUT MODAL PREVIEW (5 cols) */}
+              <div className="lg:col-span-5 sticky top-24 space-y-3">
+                <div className="flex items-center justify-between px-1">
+                  <div className="flex items-center gap-2">
+                    <Eye className="w-4 h-4 text-[#7C3F27]" />
+                    <span className="text-xs font-bold text-[#411C10] font-serif">
+                      Live Customer Checkout Preview
+                    </span>
+                  </div>
+                  <span className="inline-flex items-center gap-1 text-[10px] uppercase font-bold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                    <span>Real-time</span>
+                  </span>
+                </div>
+
+                {/* Simulated Customer Checkout Popup Card */}
+                <div className="bg-[#FFF9F3] rounded-3xl border-2 border-[#D29C83]/40 shadow-xl overflow-hidden text-center">
+                  {/* Simulated Modal Header */}
+                  <div className="bg-[#FEEDDD]/80 px-4 py-3 border-b border-[#D29C83]/20 flex items-center justify-between text-left">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-[#7C3F27] text-[#FEEDDD] flex items-center justify-center text-xs">
+                        <ShoppingBag className="w-3 h-3" />
+                      </div>
+                      <div>
+                        <h5 className="font-serif text-xs font-semibold text-[#411C10]">
+                          Step 2: Pay via Google Pay / UPI
+                        </h5>
+                        <p className="text-[9px] text-[#7C3F27]">
+                          Scan QR or copy UPI ID, then upload your screenshot
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Simulated Payable Amount Bar */}
+                  <div className="p-3.5 space-y-3">
+                    <div className="bg-[#FEEDDD]/60 border border-[#D29C83]/40 rounded-xl p-2.5 flex items-center justify-between text-left">
+                      <div>
+                        <span className="text-[9px] uppercase font-bold text-[#A66D54]">
+                          Payable Amount
+                        </span>
+                        <div className="font-serif text-xs font-bold text-[#411C10]">
+                          Sample Cake (500gm)
+                        </div>
+                      </div>
+                      <span className="text-base font-serif font-bold text-[#7C3F27]">
+                        ₹499/-
+                      </span>
+                    </div>
+
+                    {/* QR Code Container in Preview */}
+                    <div className="bg-white border border-[#D29C83]/30 rounded-2xl p-4 shadow-inner space-y-2.5">
+                      <div className="inline-flex items-center gap-1 bg-[#FEEDDD] px-2.5 py-0.5 rounded-full text-[10px] font-semibold text-[#7C3F27]">
+                        <QrCode className="w-3 h-3" />
+                        <span>
+                          {paymentSettings.qrCodeImage && paymentSettings.qrMode === 'custom'
+                            ? 'Bakery Standee QR'
+                            : 'Scan & Pay ₹499'}
+                        </span>
+                      </div>
+
+                      <div className="p-2.5 bg-white rounded-xl border-2 border-[#D29C83]/30 shadow-xs inline-block">
+                        <img
+                          src={
+                            paymentSettings.qrCodeImage && paymentSettings.qrMode === 'custom'
+                              ? paymentSettings.qrCodeImage
+                              : `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(
+                                  `upi://pay?pa=${paymentSettings.upiId || '9790983844@okaxis'}&pn=${
+                                    paymentSettings.payeeName || 'Pastry Paws'
+                                  }&am=499&cu=INR`
+                                )}`
+                          }
+                          alt="Live Preview QR"
+                          className="w-32 h-32 sm:w-36 sm:h-36 object-contain mx-auto rounded"
+                        />
+                      </div>
+
+                      <div className="text-[10px] text-[#7C3F27] font-semibold">
+                        Payee: <strong>{paymentSettings.payeeName || 'Pastry Paws'}</strong>
+                      </div>
+
+                      {/* Supported Apps */}
+                      <div className="flex items-center justify-center gap-1.5 text-[9px] text-[#A66D54]">
+                        <span className="bg-[#FEEDDD] px-1.5 py-0.5 rounded font-semibold text-[#411C10]">
+                          GPay
+                        </span>
+                        <span>•</span>
+                        <span className="bg-[#FEEDDD] px-1.5 py-0.5 rounded font-semibold text-[#411C10]">
+                          PhonePe
+                        </span>
+                        <span>•</span>
+                        <span className="bg-[#FEEDDD] px-1.5 py-0.5 rounded font-semibold text-[#411C10]">
+                          Paytm
+                        </span>
+                        <span>•</span>
+                        <span className="bg-[#FEEDDD] px-1.5 py-0.5 rounded font-semibold text-[#411C10]">
+                          BHIM
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Live UPI Copy Bar */}
+                    <div className="flex items-center justify-between bg-[#FEEDDD]/70 border border-[#D29C83]/40 rounded-xl px-3 py-2 text-xs">
+                      <div className="text-left">
+                        <span className="text-[9px] uppercase tracking-wider text-[#A66D54] block font-semibold">
+                          UPI ID
+                        </span>
+                        <span className="font-mono font-bold text-[#411C10] text-xs">
+                          {paymentSettings.upiId || '9790983844@okaxis'}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (paymentSettings.upiId) {
+                            navigator.clipboard.writeText(paymentSettings.upiId);
+                            setCopiedAdminUpi(true);
+                            setTimeout(() => setCopiedAdminUpi(false), 2000);
+                          }
+                        }}
+                        className="inline-flex items-center gap-1 bg-[#7C3F27] text-[#FEEDDD] px-2.5 py-1 rounded-lg text-[11px] font-semibold"
+                      >
+                        {copiedAdminUpi ? (
+                          <>
+                            <Check className="w-3 h-3 text-emerald-300" />
+                            <span>Copied</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3 h-3" />
+                            <span>Copy</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Payment Phone row */}
+                    <div className="flex items-center justify-between text-[11px] text-[#7C3F27] pt-1 border-t border-[#D29C83]/20">
+                      <span className="text-[#A66D54]">Need Assistance:</span>
+                      <span className="font-bold flex items-center gap-1">
+                        <Phone className="w-3 h-3" />
+                        <span>+91 {paymentSettings.phoneNumber || '9790983844'}</span>
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

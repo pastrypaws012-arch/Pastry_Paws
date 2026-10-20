@@ -6,6 +6,7 @@
 
 import { brandConfig } from '../data/brand';
 import { API_BASE_URL } from './api';
+import { getCachedPaymentConfig } from './paymentConfig';
 
 /**
  * Dynamically fetches the latest, authoritative order record from the database.
@@ -39,6 +40,7 @@ export async function fetchOrderFromDatabase(orderIdOrId) {
  * Features luxury boutique typography, official bakery seal, dynamic QR code, and full payment details.
  */
 export function generateOrderInvoiceHtml(order) {
+  const paymentConfig = getCachedPaymentConfig();
   const invoiceNo = `INV-${order.orderId || 'PP-OFFICIAL'}`;
   const orderDate = order.createdAt
     ? new Date(order.createdAt).toLocaleDateString('en-IN', {
@@ -594,8 +596,8 @@ export function generateOrderInvoiceHtml(order) {
           <p class="brand-tagline">Artisanal Bakery & Handcrafted Gourmet Treats</p>
           <div class="studio-details">
             <p>Freshly baked from our studio kitchen</p>
-            <p>WhatsApp & Phone: +91 97909 83844 • Email: pastrypaws012@gmail.com</p>
-            <p>Official Bakery UPI: <strong>${brandConfig.payment?.upiId || '9790983844@okaxis'}</strong></p>
+            <p>WhatsApp & Phone: +91 ${paymentConfig.phoneNumber || brandConfig.contact?.phone || '9790983844'} • Email: ${brandConfig.contact?.email || 'pastrypaws012@gmail.com'}</p>
+            <p>Official Bakery UPI: <strong>${paymentConfig.upiId || brandConfig.payment?.upiId || '9790983844@okaxis'}</strong></p>
             <p>Website: pastrypaws.com</p>
           </div>
         </div>

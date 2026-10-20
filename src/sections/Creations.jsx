@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Sparkles, Star, Flame } from 'lucide-react';
 import { SectionHeading } from '../components/SectionHeading';
 import { PortfolioCard } from '../components/PortfolioCard';
 import { ImageLightbox } from '../components/ImageLightbox';
@@ -11,6 +11,8 @@ export function Creations() {
   const [menuItems, setMenuItems] = useState([]);
   const [categoryList, setCategoryList] = useState(['All']);
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [featuredOnly, setFeaturedOnly] = useState(false);
+  const [bestsellerOnly, setBestsellerOnly] = useState(false);
   const [activeLightboxIndex, setActiveLightboxIndex] = useState(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
@@ -49,10 +51,12 @@ export function Creations() {
     return () => { isMounted = false; };
   }, []);
 
-  // Filter items by category
+  // Filter items by category, featured, and bestsellers
   const filteredItems = menuItems.filter((item) => {
-    if (selectedCategory === 'All') return true;
-    return item.category === selectedCategory;
+    if (selectedCategory !== 'All' && item.category !== selectedCategory) return false;
+    if (featuredOnly && !item.featured) return false;
+    if (bestsellerOnly && !(item.badge || '').toLowerCase().includes('bestseller')) return false;
+    return true;
   });
 
   // Check scroll positions
@@ -150,7 +154,7 @@ export function Creations() {
                     key={cat}
                     type="button"
                     onClick={() => handleCategorySelect(cat)}
-                    className={`px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm tracking-wide transition-all duration-300 font-medium ${
+                    className={`px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm tracking-wide transition-all duration-300 font-medium cursor-pointer ${
                       isActive
                         ? 'bg-[#7C3F27] text-[#FEEDDD] shadow-xs'
                         : 'bg-[#FEEDDD] text-[#7C3F27] border border-[#D29C83]/40 hover:bg-[#FEE5D2]'
@@ -160,6 +164,36 @@ export function Creations() {
                   </button>
                 );
               })}
+
+              <span className="hidden sm:inline-block w-px h-5 bg-[#D29C83]/40 mx-1" />
+
+              {/* Featured Highlight Chip */}
+              <button
+                type="button"
+                onClick={() => setFeaturedOnly(!featuredOnly)}
+                className={`inline-flex items-center gap-1 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 cursor-pointer ${
+                  featuredOnly
+                    ? 'bg-amber-600 text-white shadow-xs'
+                    : 'bg-[#FEEDDD] text-[#7C3F27] border border-[#D29C83]/40 hover:bg-[#FEE5D2]'
+                }`}
+              >
+                <Star className="w-3.5 h-3.5" />
+                <span>Featured</span>
+              </button>
+
+              {/* Bestseller Highlight Chip */}
+              <button
+                type="button"
+                onClick={() => setBestsellerOnly(!bestsellerOnly)}
+                className={`inline-flex items-center gap-1 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 cursor-pointer ${
+                  bestsellerOnly
+                    ? 'bg-[#7C3F27] text-white shadow-xs'
+                    : 'bg-[#FEEDDD] text-[#7C3F27] border border-[#D29C83]/40 hover:bg-[#FEE5D2]'
+                }`}
+              >
+                <Flame className="w-3.5 h-3.5 text-orange-400" />
+                <span>Bestsellers</span>
+              </button>
             </div>
 
             {/* Navigation Arrow Controls */}

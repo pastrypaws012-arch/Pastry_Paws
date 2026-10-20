@@ -4,7 +4,7 @@ export const brandConfig = {
   tagline: "Baked with love • Cakes • Pastries • Happiness",
   eyebrow: "BAKED WITH LOVE",
   slogan: "Sweet treats for every mood",
-  specialOffer: "Birthday cakes include complimentary mini cookies",
+  specialOffer: " ",
   year: new Date().getFullYear(),
 
   // Contact & Social

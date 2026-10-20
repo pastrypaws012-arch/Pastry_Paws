@@ -147,7 +147,7 @@ export function ImageLightbox({
                     </div>
                     {item.category === 'Cakes' && (
                       <p className="text-[11px] text-[#7C3F27] mt-2 font-medium italic">
-                        🎁 Birthday cakes include complimentary mini cookies!
+
                       </p>
                     )}
                     {item.category === 'Cupcakes' && (

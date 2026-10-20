@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -24,10 +24,15 @@ import {
   Eye,
   QrCode,
   Maximize2,
+  Filter,
+  ArrowUpDown,
+  RotateCcw,
+  X,
 } from 'lucide-react';
 import { brandConfig } from '../data/brand';
 import { API_BASE_URL } from '../utils/api';
 import { printOrderInvoice } from '../utils/invoiceGenerator';
+import { getCachedPaymentConfig, fetchPaymentConfig } from '../utils/paymentConfig';
 
 const STATUS_CONFIG = {
   pending: {
@@ -113,6 +118,97 @@ export function TrackOrderPage() {
   const [previewReceiptUrl, setPreviewReceiptUrl] = useState(null);
   const [copiedUpiInTracker, setCopiedUpiInTracker] = useState(false);
   const [generatingInvoiceId, setGeneratingInvoiceId] = useState(null);
+  const [paymentConfig, setPaymentConfig] = useState(getCachedPaymentConfig);
+
+  useEffect(() => {
+    fetchPaymentConfig().then((cfg) => {
+      if (cfg) setPaymentConfig(cfg);
+    });
+  }, []);
+
+  // Tracked Orders Filter & Sort States
+  const [trackerStatusFilter, setTrackerStatusFilter] = useState('all'); // 'all' | 'active' | 'delivered' | 'cancelled' | 'action_needed'
+  const [trackerPaymentFilter, setTrackerPaymentFilter] = useState('all'); // 'all' | 'verified' | 'pending_verification' | 'rejected'
+  const [trackerSearchQuery, setTrackerSearchQuery] = useState('');
+  const [trackerSortBy, setTrackerSortBy] = useState('newest'); // 'newest' | 'oldest' | 'amount_high' | 'amount_low'
+
+  // Counts for quick filter pills
+  const filterCounts = useMemo(() => {
+    const total = orders.length;
+    let active = 0;
+    let delivered = 0;
+    let cancelled = 0;
+    let actionNeeded = 0;
+
+    orders.forEach((o) => {
+      const statusKey = o.status || 'pending';
+      if (statusKey === 'delivered') delivered++;
+      else if (statusKey === 'cancelled') cancelled++;
+      else active++;
+
+      if (o.paymentStatus === 'rejected') actionNeeded++;
+    });
+
+    return { total, active, delivered, cancelled, actionNeeded };
+  }, [orders]);
+
+  // Filtered and Sorted tracked orders
+  const filteredTrackedOrders = useMemo(() => {
+    return orders
+      .filter((order) => {
+        const statusKey = order.status || 'pending';
+        const isCancelled = statusKey === 'cancelled';
+        const isDelivered = statusKey === 'delivered';
+        const isActive = !isCancelled && !isDelivered;
+        const needsAction = order.paymentStatus === 'rejected';
+
+        // Status Filter
+        if (trackerStatusFilter === 'active' && !isActive) return false;
+        if (trackerStatusFilter === 'delivered' && !isDelivered) return false;
+        if (trackerStatusFilter === 'cancelled' && !isCancelled) return false;
+        if (trackerStatusFilter === 'action_needed' && !needsAction) return false;
+
+        // Payment Filter
+        if (trackerPaymentFilter !== 'all') {
+          if (trackerPaymentFilter === 'pending_verification') {
+            if (order.paymentStatus !== 'pending_verification' && order.paymentStatus) return false;
+          } else if (order.paymentStatus !== trackerPaymentFilter) {
+            return false;
+          }
+        }
+
+        // Search Query (Order ID, Item Title, Size, Transaction ID / UTR, Address)
+        if (trackerSearchQuery.trim()) {
+          const q = trackerSearchQuery.toLowerCase().trim();
+          const matchId = (order.orderId || '').toLowerCase().includes(q) || (order._id || '').toLowerCase().includes(q);
+          const matchTitle = (order.itemTitle || '').toLowerCase().includes(q);
+          const matchSize = (order.selectedSize || '').toLowerCase().includes(q);
+          const matchUtr = (order.transactionId || '').toLowerCase().includes(q);
+          const matchAddr = (order.deliveryAddress || '').toLowerCase().includes(q);
+          if (!matchId && !matchTitle && !matchSize && !matchUtr && !matchAddr) {
+            return false;
+          }
+        }
+
+        return true;
+      })
+      .sort((a, b) => {
+        const dateA = new Date(a.createdAt || 0).getTime();
+        const dateB = new Date(b.createdAt || 0).getTime();
+        if (trackerSortBy === 'newest') return dateB - dateA;
+        if (trackerSortBy === 'oldest') return dateA - dateB;
+
+        const parsePrice = (priceStr) => {
+          if (!priceStr) return 0;
+          const num = String(priceStr).replace(/[^0-9.]/g, '');
+          return parseFloat(num) || 0;
+        };
+
+        if (trackerSortBy === 'amount_high') return parsePrice(b.price) - parsePrice(a.price);
+        if (trackerSortBy === 'amount_low') return parsePrice(a.price) - parsePrice(b.price);
+        return dateB - dateA;
+      });
+  }, [orders, trackerStatusFilter, trackerPaymentFilter, trackerSearchQuery, trackerSortBy]);
 
   const handleDownloadInvoice = async (order) => {
     const targetId = order.orderId || order._id;
@@ -176,7 +272,7 @@ export function TrackOrderPage() {
   };
 
   const handleCopyUpiInTracker = () => {
-    const upiId = brandConfig.payment?.upiId || '9790983844@okaxis';
+    const upiId = paymentConfig.upiId || brandConfig.payment?.upiId || '9790983844@okaxis';
     navigator.clipboard.writeText(upiId);
     setCopiedUpiInTracker(true);
     setTimeout(() => setCopiedUpiInTracker(false), 2500);
@@ -475,29 +571,223 @@ export function TrackOrderPage() {
         {/* Results Area */}
         <div className="space-y-6 max-w-3xl mx-auto">
           {hasSearched && (
-            <div className="flex items-center justify-between border-b border-[#D29C83]/30 pb-3">
-              <h2 className="font-serif text-lg text-[#411C10] font-normal">
-                {orders.length > 0 ? (
-                  <span>
-                    Orders for <strong className="text-[#7C3F27]">{searchedPhone}</strong> ({orders.length})
-                  </span>
-                ) : (
-                  <span>No orders found</span>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between border-b border-[#D29C83]/30 pb-3">
+                <h2 className="font-serif text-lg text-[#411C10] font-normal">
+                  {orders.length > 0 ? (
+                    <span>
+                      Orders for <strong className="text-[#7C3F27]">{searchedPhone}</strong> ({orders.length})
+                    </span>
+                  ) : (
+                    <span>No orders found</span>
+                  )}
+                </h2>
+                {orders.length > 0 && (
+                  <button
+                    onClick={() => handleLookup(searchedPhone)}
+                    className="text-xs text-[#7C3F27] hover:text-[#411C10] flex items-center gap-1 font-medium cursor-pointer"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    <span>Refresh</span>
+                  </button>
                 )}
-              </h2>
+              </div>
+
+              {/* Quick Status Filter Pills (Only shown when orders exist) */}
               {orders.length > 0 && (
-                <button
-                  onClick={() => handleLookup(searchedPhone)}
-                  className="text-xs text-[#7C3F27] hover:text-[#411C10] flex items-center gap-1 font-medium cursor-pointer"
-                >
-                  <RefreshCw className="w-3 h-3" />
-                  <span>Refresh</span>
-                </button>
+                <div className="bg-[#FFF9F3] p-4 rounded-3xl border border-[#D29C83]/30 shadow-xs space-y-3">
+                  {/* Status Pills */}
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+                    <button
+                      type="button"
+                      onClick={() => setTrackerStatusFilter('all')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                        trackerStatusFilter === 'all'
+                          ? 'bg-[#7C3F27] text-white shadow-xs'
+                          : 'bg-[#FEEDDD]/60 text-[#7C3F27] hover:bg-[#FEEDDD] border border-[#D29C83]/30'
+                      }`}
+                    >
+                      All Orders ({filterCounts.total})
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setTrackerStatusFilter('active')}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                        trackerStatusFilter === 'active'
+                          ? 'bg-[#7C3F27] text-white shadow-xs'
+                          : 'bg-[#FEEDDD]/60 text-[#7C3F27] hover:bg-[#FEEDDD] border border-[#D29C83]/30'
+                      }`}
+                    >
+                      <span>In Progress ({filterCounts.active})</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setTrackerStatusFilter('delivered')}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                        trackerStatusFilter === 'delivered'
+                          ? 'bg-emerald-600 text-white shadow-xs'
+                          : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200'
+                      }`}
+                    >
+                      <span>Delivered ({filterCounts.delivered})</span>
+                    </button>
+
+                    {filterCounts.actionNeeded > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setTrackerStatusFilter('action_needed')}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                          trackerStatusFilter === 'action_needed'
+                            ? 'bg-rose-600 text-white shadow-xs'
+                            : 'bg-rose-50 text-rose-800 hover:bg-rose-100 border border-rose-300 animate-pulse'
+                        }`}
+                      >
+                        <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+                        <span>Action Required ({filterCounts.actionNeeded})</span>
+                      </button>
+                    )}
+
+                    {filterCounts.cancelled > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setTrackerStatusFilter('cancelled')}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                          trackerStatusFilter === 'cancelled'
+                            ? 'bg-rose-700 text-white shadow-xs'
+                            : 'bg-rose-50 text-rose-800 hover:bg-rose-100 border border-rose-200'
+                        }`}
+                      >
+                        <span>Cancelled ({filterCounts.cancelled})</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Search within tracked orders & Select Filters */}
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 pt-2 border-t border-[#D29C83]/20">
+                    {/* Search Input */}
+                    <div className="relative sm:col-span-6">
+                      <Search className="w-3.5 h-3.5 text-[#A66D54] absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        value={trackerSearchQuery}
+                        onChange={(e) => setTrackerSearchQuery(e.target.value)}
+                        placeholder="Filter by cake title, Order #ID, or UTR..."
+                        className="w-full pl-9 pr-8 py-2 text-xs rounded-xl border border-[#D29C83]/40 bg-[#FEEDDD]/30 text-[#411C10] placeholder:text-[#A66D54]/60 focus:outline-none focus:border-[#7C3F27]"
+                      />
+                      {trackerSearchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => setTrackerSearchQuery('')}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#A66D54] hover:text-[#411C10] p-1 cursor-pointer"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Payment Status Dropdown */}
+                    <div className="sm:col-span-3">
+                      <select
+                        value={trackerPaymentFilter}
+                        onChange={(e) => setTrackerPaymentFilter(e.target.value)}
+                        className="w-full text-xs px-2.5 py-2 rounded-xl border border-[#D29C83]/40 bg-[#FEEDDD]/40 text-[#411C10] focus:outline-none focus:border-[#7C3F27]"
+                      >
+                        <option value="all">All Payment States</option>
+                        <option value="verified">Payment Verified ✅</option>
+                        <option value="pending_verification">Review Pending ⏳</option>
+                        <option value="rejected">Re-upload Needed ⚠️</option>
+                      </select>
+                    </div>
+
+                    {/* Sort By Dropdown */}
+                    <div className="sm:col-span-3">
+                      <select
+                        value={trackerSortBy}
+                        onChange={(e) => setTrackerSortBy(e.target.value)}
+                        className="w-full text-xs px-2.5 py-2 rounded-xl border border-[#D29C83]/40 bg-[#FEEDDD]/40 text-[#411C10] focus:outline-none focus:border-[#7C3F27]"
+                      >
+                        <option value="newest">Newest First</option>
+                        <option value="oldest">Oldest First</option>
+                        <option value="amount_high">Amount: High to Low</option>
+                        <option value="amount_low">Amount: Low to High</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Active Filters Summary & Reset */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2 text-[11px] text-[#7C3F27]">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="font-semibold text-[#411C10]">
+                        Showing {filteredTrackedOrders.length} of {orders.length} orders
+                      </span>
+
+                      {trackerStatusFilter !== 'all' && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#FEEDDD] text-[#7C3F27] border border-[#D29C83]/40 font-medium">
+                          <span>Status: {trackerStatusFilter.replace('_', ' ')}</span>
+                          <button
+                            type="button"
+                            onClick={() => setTrackerStatusFilter('all')}
+                            className="hover:text-rose-600 cursor-pointer"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      )}
+
+                      {trackerPaymentFilter !== 'all' && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#FEEDDD] text-[#7C3F27] border border-[#D29C83]/40 font-medium">
+                          <span>Payment: {trackerPaymentFilter.replace('_', ' ')}</span>
+                          <button
+                            type="button"
+                            onClick={() => setTrackerPaymentFilter('all')}
+                            className="hover:text-rose-600 cursor-pointer"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      )}
+
+                      {trackerSearchQuery && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#FEEDDD] text-[#7C3F27] border border-[#D29C83]/40 font-medium">
+                          <span>Search: "{trackerSearchQuery}"</span>
+                          <button
+                            type="button"
+                            onClick={() => setTrackerSearchQuery('')}
+                            className="hover:text-rose-600 cursor-pointer"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      )}
+                    </div>
+
+                    {(trackerStatusFilter !== 'all' ||
+                      trackerPaymentFilter !== 'all' ||
+                      trackerSearchQuery ||
+                      trackerSortBy !== 'newest') && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTrackerStatusFilter('all');
+                          setTrackerPaymentFilter('all');
+                          setTrackerSearchQuery('');
+                          setTrackerSortBy('newest');
+                        }}
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#7C3F27] hover:text-[#411C10] underline cursor-pointer"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                        <span>Reset Filters</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
               )}
             </div>
           )}
 
-          {/* Empty State */}
+          {/* Empty State when no orders exist at all */}
           {hasSearched && orders.length === 0 && !loading && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
@@ -527,9 +817,33 @@ export function TrackOrderPage() {
             </motion.div>
           )}
 
+          {/* Filter Empty State when orders exist but filters match 0 */}
+          {hasSearched && orders.length > 0 && filteredTrackedOrders.length === 0 && (
+            <div className="text-center py-12 px-6 bg-[#FFF9F3] rounded-3xl border border-[#D29C83]/30 shadow-xs space-y-3">
+              <Package className="w-10 h-10 text-[#D29C83] mx-auto mb-2" />
+              <h3 className="font-serif text-xl text-[#411C10]">No orders match your filter criteria</h3>
+              <p className="text-xs text-[#7C3F27] max-w-md mx-auto">
+                Try searching for a different cake name, clearing the search query, or switching back to "All Orders".
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setTrackerStatusFilter('all');
+                  setTrackerPaymentFilter('all');
+                  setTrackerSearchQuery('');
+                  setTrackerSortBy('newest');
+                }}
+                className="mt-2 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#FEEDDD] text-[#7C3F27] hover:bg-[#D29C83]/30 text-xs font-semibold cursor-pointer transition-colors"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Reset Order Filters</span>
+              </button>
+            </div>
+          )}
+
           {/* Orders List */}
           <div className="space-y-5">
-            {orders.map((order, idx) => {
+            {filteredTrackedOrders.map((order, idx) => {
               const statusKey = order.status || 'pending';
               const statusMeta = STATUS_CONFIG[statusKey] || STATUS_CONFIG.pending;
               const StatusIcon = statusMeta.icon;
@@ -1098,7 +1412,7 @@ export function TrackOrderPage() {
                     onClick={handleCopyUpiInTracker}
                     className="inline-flex items-center gap-1 bg-[#FFF9F3] hover:bg-[#FEEDDD] px-2.5 py-1 rounded-lg border border-[#D29C83]/35 text-xs font-mono font-bold text-[#411C10] transition-colors cursor-pointer"
                   >
-                    <span>{brandConfig.payment?.upiId || '9790983844@okaxis'}</span>
+                    <span>{paymentConfig.upiId || brandConfig.payment?.upiId || '9790983844@okaxis'}</span>
                     {copiedUpiInTracker ? (
                       <Check className="w-3.5 h-3.5 text-emerald-600" />
                     ) : (
@@ -1108,7 +1422,7 @@ export function TrackOrderPage() {
                 </div>
 
                 <div className="text-[11px] text-[#A66D54] flex items-center justify-between">
-                  <span>Payee Name: <strong>{brandConfig.payment?.payeeName || 'Pastry Paws'}</strong></span>
+                  <span>Payee Name: <strong>{paymentConfig.payeeName || brandConfig.payment?.payeeName || 'Pastry Paws'}</strong></span>
                   <span>Amount: <strong className="text-[#411C10] font-bold">{reuploadingOrder.price}</strong></span>
                 </div>
               </div>

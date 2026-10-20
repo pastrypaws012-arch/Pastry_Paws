@@ -11,6 +11,12 @@ import {
   Cake,
   Heart,
   MessageCircle,
+  Filter,
+  Tag,
+  Star,
+  RotateCcw,
+  Flame,
+  ArrowUpDown,
 } from 'lucide-react';
 import { brandConfig } from '../data/brand';
 import { MenuCard } from '../components/MenuCard';
@@ -37,6 +43,9 @@ export function MenuPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [priceRange, setPriceRange] = useState('all'); // 'all', 'under250', 'under500', 'above500'
   const [sortBy, setSortBy] = useState('featured'); // 'featured', 'priceAsc', 'priceDesc', 'name'
+  const [selectedBadge, setSelectedBadge] = useState('all'); // 'all' | 'bestseller' | 'signature' | 'special'
+  const [featuredOnly, setFeaturedOnly] = useState(false);
+  const [dietaryPreference, setDietaryPreference] = useState('all'); // 'all' | 'eggless' | 'chocolate'
   const [activeLightboxIndex, setActiveLightboxIndex] = useState(null);
   const [orderModal, setOrderModal] = useState({ isOpen: false, item: null, tier: null });
 
@@ -88,9 +97,10 @@ export function MenuPage() {
         const query = searchQuery.trim().toLowerCase();
         const matchSearch =
           !query ||
-          item.title.toLowerCase().includes(query) ||
-          item.description.toLowerCase().includes(query) ||
-          item.category.toLowerCase().includes(query) ||
+          (item.title || '').toLowerCase().includes(query) ||
+          (item.description || '').toLowerCase().includes(query) ||
+          (item.category || '').toLowerCase().includes(query) ||
+          (item.badge || '').toLowerCase().includes(query) ||
           item.tags?.some((t) => t.toLowerCase().includes(query));
 
         // Price range filter
@@ -103,16 +113,42 @@ export function MenuPage() {
           matchPrice = item.startingPrice > 500;
         }
 
-        return matchCategory && matchSearch && matchPrice;
+        // Badge filter
+        let matchBadge = true;
+        if (selectedBadge !== 'all') {
+          const b = (item.badge || '').toLowerCase();
+          if (selectedBadge === 'bestseller') matchBadge = b.includes('bestseller');
+          else if (selectedBadge === 'signature') matchBadge = b.includes('signature');
+          else if (selectedBadge === 'special') matchBadge = b.includes('special');
+        }
+
+        // Featured Only
+        let matchFeatured = true;
+        if (featuredOnly) {
+          matchFeatured = Boolean(item.featured);
+        }
+
+        // Dietary Preference
+        let matchDietary = true;
+        if (dietaryPreference !== 'all') {
+          const text = `${item.title || ''} ${item.description || ''} ${item.tags?.join(' ') || ''}`.toLowerCase();
+          if (dietaryPreference === 'chocolate') {
+            matchDietary = text.includes('choco') || text.includes('chocolate') || text.includes('cocoa') || text.includes('fudge');
+          } else if (dietaryPreference === 'eggless') {
+            matchDietary = text.includes('eggless') || (item.badge || '').toLowerCase().includes('eggless');
+          }
+        }
+
+        return matchCategory && matchSearch && matchPrice && matchBadge && matchFeatured && matchDietary;
       })
       .sort((a, b) => {
         if (sortBy === 'priceAsc') return a.startingPrice - b.startingPrice;
         if (sortBy === 'priceDesc') return b.startingPrice - a.startingPrice;
-        if (sortBy === 'name') return a.title.localeCompare(b.title);
+        if (sortBy === 'name') return (a.title || '').localeCompare(b.title || '');
         // Featured (default)
         return (b.featured ? 1 : 0) - (a.featured ? 1 : 0);
       });
-  }, [menuItems, selectedCategory, searchQuery, priceRange, sortBy]);
+  }, [menuItems, selectedCategory, searchQuery, priceRange, sortBy, selectedBadge, featuredOnly, dietaryPreference]);
 
   // Lightbox navigation helpers
   const handleOpenLightbox = (item) => {
@@ -144,6 +180,9 @@ export function MenuPage() {
     setSearchQuery('');
     setPriceRange('all');
     setSortBy('featured');
+    setSelectedBadge('all');
+    setFeaturedOnly(false);
+    setDietaryPreference('all');
   };
 
   return (
@@ -189,7 +228,7 @@ export function MenuPage() {
         <div className="mt-6 inline-flex flex-wrap items-center justify-center gap-2 sm:gap-4 bg-[#FEE5D2]/70 border border-[#D29C83]/40 px-4 py-2 rounded-full text-xs text-[#411C10]">
           <span className="flex items-center gap-1.5 font-semibold text-[#7C3F27]">
             <Cake className="w-3.5 h-3.5 text-[#7C3F27]" />
-            Birthday cakes include complimentary mini cookies
+
           </span>
           <span className="hidden sm:inline text-[#D29C83]">•</span>
           <span className="text-[#7C3F27] font-medium">Choco Lava Cake @ ₹99/-</span>
@@ -249,17 +288,87 @@ export function MenuPage() {
                     key={cat}
                     type="button"
                     onClick={() => setSelectedCategory(cat)}
-                    className={`px-3.5 py-1.5 rounded-full text-xs font-medium tracking-wide whitespace-nowrap transition-all duration-200 cursor-pointer ${
-                      isActive
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-medium tracking-wide whitespace-nowrap transition-all duration-200 cursor-pointer ${isActive
                         ? 'bg-[#7C3F27] text-[#FEEDDD] shadow-2xs font-semibold'
                         : 'bg-[#FEEDDD]/60 text-[#7C3F27] hover:bg-[#FEEDDD] border border-[#D29C83]/30'
-                    }`}
+                      }`}
                   >
                     {cat}
                   </button>
                 );
               })}
             </div>
+          </div>
+
+          {/* Special Feature & Dietary Quick Chips */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+            <span className="text-[11px] text-[#A66D54] font-semibold shrink-0 mr-1 flex items-center gap-1">
+              <Sparkles className="w-3 h-3 text-[#7C3F27]" />
+              <span>Highlights:</span>
+            </span>
+
+            {/* Featured Only Chip */}
+            <button
+              type="button"
+              onClick={() => setFeaturedOnly(!featuredOnly)}
+              className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium transition-all whitespace-nowrap cursor-pointer ${featuredOnly
+                  ? 'bg-amber-600 text-white shadow-2xs font-semibold'
+                  : 'bg-[#FEEDDD]/50 text-[#7C3F27] hover:bg-[#FEEDDD] border border-[#D29C83]/30'
+                }`}
+            >
+              <Star className="w-3 h-3" />
+              <span>Featured Only</span>
+            </button>
+
+            {/* Bestseller Chip */}
+            <button
+              type="button"
+              onClick={() => setSelectedBadge(selectedBadge === 'bestseller' ? 'all' : 'bestseller')}
+              className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium transition-all whitespace-nowrap cursor-pointer ${selectedBadge === 'bestseller'
+                  ? 'bg-[#7C3F27] text-white shadow-2xs font-semibold'
+                  : 'bg-[#FEEDDD]/50 text-[#7C3F27] hover:bg-[#FEEDDD] border border-[#D29C83]/30'
+                }`}
+            >
+              <Flame className="w-3 h-3 text-orange-400" />
+              <span>Bestsellers</span>
+            </button>
+
+            {/* Signature Collection Chip */}
+            <button
+              type="button"
+              onClick={() => setSelectedBadge(selectedBadge === 'signature' ? 'all' : 'signature')}
+              className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium transition-all whitespace-nowrap cursor-pointer ${selectedBadge === 'signature'
+                  ? 'bg-[#7C3F27] text-white shadow-2xs font-semibold'
+                  : 'bg-[#FEEDDD]/50 text-[#7C3F27] hover:bg-[#FEEDDD] border border-[#D29C83]/30'
+                }`}
+            >
+              <Tag className="w-3 h-3" />
+              <span>Signature</span>
+            </button>
+
+            {/* Chocolate Lovers Chip */}
+            <button
+              type="button"
+              onClick={() => setDietaryPreference(dietaryPreference === 'chocolate' ? 'all' : 'chocolate')}
+              className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium transition-all whitespace-nowrap cursor-pointer ${dietaryPreference === 'chocolate'
+                  ? 'bg-[#411C10] text-[#FEEDDD] shadow-2xs font-semibold'
+                  : 'bg-[#FEEDDD]/50 text-[#7C3F27] hover:bg-[#FEEDDD] border border-[#D29C83]/30'
+                }`}
+            >
+              <span>🍫 Choco Lovers</span>
+            </button>
+
+            {/* Eggless Treats Chip */}
+            <button
+              type="button"
+              onClick={() => setDietaryPreference(dietaryPreference === 'eggless' ? 'all' : 'eggless')}
+              className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium transition-all whitespace-nowrap cursor-pointer ${dietaryPreference === 'eggless'
+                  ? 'bg-emerald-700 text-white shadow-2xs font-semibold'
+                  : 'bg-[#FEEDDD]/50 text-[#7C3F27] hover:bg-[#FEEDDD] border border-[#D29C83]/30'
+                }`}
+            >
+              <span>🌿 Eggless</span>
+            </button>
           </div>
 
           {/* Bottom Row: Price Presets & Active Filters Summary */}
@@ -277,11 +386,10 @@ export function MenuPage() {
                   key={pill.id}
                   type="button"
                   onClick={() => setPriceRange(pill.id)}
-                  className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
-                    priceRange === pill.id
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer ${priceRange === pill.id
                       ? 'bg-[#FEE5D2] text-[#7C3F27] font-semibold border border-[#D29C83]'
                       : 'text-[#7C3F27] hover:bg-[#FEEDDD]/70 border border-[#D29C83]/20'
-                  }`}
+                    }`}
                 >
                   {pill.label}
                 </button>
@@ -291,19 +399,116 @@ export function MenuPage() {
             {/* Results count & reset */}
             <div className="flex items-center gap-3 ml-auto text-xs text-[#7C3F27]">
               <span>
-                Showing <strong className="text-[#411C10]">{filteredItems.length}</strong> items
+                Showing <strong className="text-[#411C10]">{filteredItems.length}</strong> bakes
               </span>
-              {(selectedCategory !== 'All' || searchQuery || priceRange !== 'all' || sortBy !== 'featured') && (
-                <button
-                  type="button"
-                  onClick={handleResetFilters}
-                  className="text-xs text-[#7C3F27] underline hover:text-[#411C10]"
-                >
-                  Reset filters
-                </button>
-              )}
+              {(selectedCategory !== 'All' ||
+                searchQuery ||
+                priceRange !== 'all' ||
+                sortBy !== 'featured' ||
+                selectedBadge !== 'all' ||
+                featuredOnly ||
+                dietaryPreference !== 'all') && (
+                  <button
+                    type="button"
+                    onClick={handleResetFilters}
+                    className="inline-flex items-center gap-1 text-xs text-[#7C3F27] font-semibold underline hover:text-[#411C10] cursor-pointer"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    <span>Reset filters</span>
+                  </button>
+                )}
             </div>
           </div>
+
+          {/* Active Filter Badges Bar (shown when any filter is active) */}
+          {(selectedCategory !== 'All' ||
+            searchQuery ||
+            priceRange !== 'all' ||
+            selectedBadge !== 'all' ||
+            featuredOnly ||
+            dietaryPreference !== 'all') && (
+              <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-[#D29C83]/20 text-[11px]">
+                <span className="text-[#A66D54] font-medium">Active:</span>
+
+                {selectedCategory !== 'All' && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#FEEDDD] text-[#7C3F27] border border-[#D29C83]/40">
+                    <span>Category: {selectedCategory}</span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCategory('All')}
+                      className="hover:text-rose-600 cursor-pointer"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+
+                {featuredOnly && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#FEEDDD] text-[#7C3F27] border border-[#D29C83]/40">
+                    <span>Featured Only ⭐</span>
+                    <button
+                      type="button"
+                      onClick={() => setFeaturedOnly(false)}
+                      className="hover:text-rose-600 cursor-pointer"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+
+                {selectedBadge !== 'all' && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#FEEDDD] text-[#7C3F27] border border-[#D29C83]/40">
+                    <span>Badge: {selectedBadge}</span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedBadge('all')}
+                      className="hover:text-rose-600 cursor-pointer"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+
+                {dietaryPreference !== 'all' && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#FEEDDD] text-[#7C3F27] border border-[#D29C83]/40">
+                    <span>{dietaryPreference === 'chocolate' ? '🍫 Chocolate' : '🌿 Eggless'}</span>
+                    <button
+                      type="button"
+                      onClick={() => setDietaryPreference('all')}
+                      className="hover:text-rose-600 cursor-pointer"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+
+                {priceRange !== 'all' && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#FEEDDD] text-[#7C3F27] border border-[#D29C83]/40">
+                    <span>Price: {priceRange === 'under250' ? '< ₹250' : priceRange === 'under500' ? '< ₹500' : '₹500+'}</span>
+                    <button
+                      type="button"
+                      onClick={() => setPriceRange('all')}
+                      className="hover:text-rose-600 cursor-pointer"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+
+                {searchQuery && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#FEEDDD] text-[#7C3F27] border border-[#D29C83]/40">
+                    <span>"{searchQuery}"</span>
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="hover:text-rose-600 cursor-pointer"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+              </div>
+            )}
         </div>
       </section>
 
