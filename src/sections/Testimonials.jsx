@@ -5,34 +5,46 @@ import { testimonialsData, googlePlaceSummary } from '../data/testimonials';
 import { StaggerContainer, StaggerItem, Reveal } from '../components/Reveal';
 import { GoogleIcon } from '../components/Icons';
 import { Star, ExternalLink, PlusCircle } from 'lucide-react';
+import { API_BASE_URL } from '../utils/api';
 
 export function Testimonials() {
-  // State designed for future dynamic fetching from Google Places API / backend endpoint
+  // State dynamically populated from Google Places API / backend endpoint
   const [reviews, setReviews] = useState(testimonialsData);
   const [summary, setSummary] = useState(googlePlaceSummary);
   const [loading, setLoading] = useState(false);
 
-  /*
-   * FUTURE GOOGLE MAPS FETCHING HOOK:
-   * When you are ready to fetch live Google Reviews, simply uncomment and provide your endpoint:
-   *
-   * useEffect(() => {
-   *   async function fetchGoogleReviews() {
-   *     try {
-   *       setLoading(true);
-   *       const res = await fetch('/api/google-reviews');
-   *       const data = await res.json();
-   *       if (data.reviews) setReviews(data.reviews);
-   *       if (data.summary) setSummary(data.summary);
-   *     } catch (err) {
-   *       console.error("Failed to load live Google reviews, using cache:", err);
-   *     } finally {
-   *       setLoading(false);
-   *     }
-   *   }
-   *   fetchGoogleReviews();
-   * }, []);
-   */
+  useEffect(() => {
+    async function fetchGoogleReviews() {
+      try {
+        setLoading(true);
+        const res = await fetch(`${API_BASE_URL}/api/google-reviews`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success) {
+            if (Array.isArray(data.reviews) && data.reviews.length > 0) {
+              // Strictly filter 4 and 5 star reviews as requested
+              const topRated = data.reviews.filter((r) => Number(r.rating) >= 4);
+              if (topRated.length > 0) {
+                setReviews(topRated);
+              }
+            }
+            if (data.summary) {
+              setSummary((prev) => ({
+                ...prev,
+                ...data.summary,
+                googleMapsUrl: data.summary.googleMapsUrl || 'https://maps.app.goo.gl/NrA698fpTvKPwvKx6',
+              }));
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Could not load dynamic Google reviews, using fallback cache:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchGoogleReviews();
+  }, []);
 
   return (
     <section

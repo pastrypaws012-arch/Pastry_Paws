@@ -48,6 +48,8 @@ import {
   Phone,
   Smartphone,
   Save,
+  MapPin,
+  MessageSquare,
 } from 'lucide-react';
 import { brandConfig } from '../data/brand';
 import { API_BASE_URL } from '../utils/api';
@@ -101,6 +103,47 @@ export function AdminPage() {
   const [uploadingQrImage, setUploadingQrImage] = useState(false);
   const [paymentFormError, setPaymentFormError] = useState('');
   const [copiedAdminUpi, setCopiedAdminUpi] = useState(false);
+
+  // TAB 6: Google Reviews Management State
+  const [googleReviews, setGoogleReviews] = useState([]);
+  const [reviewsSummary, setReviewsSummary] = useState({
+    placeName: 'Pastry Paws',
+    rating: 5.0,
+    reviewsCount: '5.0 ★★★★★ on Google',
+    googleMapsUrl: 'https://maps.app.goo.gl/NrA698fpTvKPwvKx6',
+    placeId: 'ChIJ9a1uLoipUjoR-t29x-KVXvc',
+    googlePlacesApiKey: '',
+  });
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [reviewsFilterRating, setReviewsFilterRating] = useState('all'); // 'all' | '5' | '4' | 'below4'
+  const [reviewsFilterVisibility, setReviewsFilterVisibility] = useState('all'); // 'all' | 'visible' | 'hidden'
+  const [reviewsSearchQuery, setReviewsSearchQuery] = useState('');
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [editingReview, setEditingReview] = useState(null);
+  const [reviewForm, setReviewForm] = useState({
+    author_name: '',
+    rating: 5,
+    text: '',
+    relative_time_description: 'Recently',
+    occasion: '',
+    highlight: '',
+    author_url: 'https://maps.app.goo.gl/NrA698fpTvKPwvKx6',
+    isDisplayed: true,
+  });
+  const [savingReview, setSavingReview] = useState(false);
+  const [deletingReview, setDeletingReview] = useState(null);
+  const [savingReviewsSummary, setSavingReviewsSummary] = useState(false);
+  const [syncingGoogleReviews, setSyncingGoogleReviews] = useState(false);
+  const [isEditSummaryModalOpen, setIsEditSummaryModalOpen] = useState(false);
+  const [summaryForm, setSummaryForm] = useState({
+    placeName: 'Pastry Paws',
+    rating: 5.0,
+    reviewsCount: '5.0 ★★★★★ on Google',
+    googleMapsUrl: 'https://maps.app.goo.gl/NrA698fpTvKPwvKx6',
+    placeId: 'ChIJ9a1uLoipUjoR-t29x-KVXvc',
+    googlePlacesApiKey: '',
+  });
+
   // TAB 1: Menu Items Filter & Sort States
   const [searchFilter, setSearchFilter] = useState('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('All');
@@ -251,6 +294,23 @@ export function AdminPage() {
       } catch (pErr) {
         console.warn('Error fetching payment config in admin:', pErr);
       }
+
+      // Fetch Google Reviews & Place Configuration
+      try {
+        const reviewsRes = await fetch(`${API_BASE_URL}/api/google-reviews/admin`);
+        if (reviewsRes.ok) {
+          const rData = await reviewsRes.json();
+          if (rData.success) {
+            setGoogleReviews(rData.reviews || []);
+            if (rData.summary) {
+              setReviewsSummary(rData.summary);
+              setSummaryForm(rData.summary);
+            }
+          }
+        }
+      } catch (rErr) {
+        console.warn('Error fetching google reviews in admin:', rErr);
+      }
     } catch {
       setItems([]);
       setCategories([]);
@@ -355,6 +415,216 @@ export function AdminPage() {
       qrMode: 'dynamic',
     }));
     showToast('Standee QR removed. QR mode switched to Dynamic NPCI QR.', 'info');
+  };
+
+  // Filtered Google Reviews (Memoized)
+  const filteredGoogleReviews = useMemo(() => {
+    return googleReviews.filter((r) => {
+      // Rating filter
+      if (reviewsFilterRating === '5' && Number(r.rating) !== 5) return false;
+      if (reviewsFilterRating === '4' && Number(r.rating) !== 4) return false;
+      if (reviewsFilterRating === 'below4' && Number(r.rating) >= 4) return false;
+
+      // Visibility filter
+      if (reviewsFilterVisibility === 'visible' && !r.isDisplayed) return false;
+      if (reviewsFilterVisibility === 'hidden' && r.isDisplayed) return false;
+
+      // Search query
+      if (reviewsSearchQuery.trim()) {
+        const q = reviewsSearchQuery.toLowerCase();
+        const matchesAuthor = r.author_name?.toLowerCase().includes(q);
+        const matchesText = r.text?.toLowerCase().includes(q);
+        const matchesHighlight = r.highlight?.toLowerCase().includes(q);
+        const matchesOccasion = r.occasion?.toLowerCase().includes(q);
+        if (!matchesAuthor && !matchesText && !matchesHighlight && !matchesOccasion) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [googleReviews, reviewsFilterRating, reviewsFilterVisibility, reviewsSearchQuery]);
+
+  // Toggle review visibility (Storefront visibility)
+  const handleToggleReviewVisibility = async (review) => {
+    try {
+      const nextDisplayed = !review.isDisplayed;
+      const res = await fetch(`${API_BASE_URL}/api/google-reviews/${review._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isDisplayed: nextDisplayed }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setGoogleReviews((prev) =>
+          prev.map((r) => (r._id === review._id ? { ...r, isDisplayed: nextDisplayed } : r))
+        );
+        showToast(
+          nextDisplayed
+            ? 'Review is now visible on storefront!'
+            : 'Review is now hidden from storefront.',
+          'success'
+        );
+      } else {
+        showToast(data.message || 'Failed to update visibility', 'error');
+      }
+    } catch {
+      showToast('Network error updating review visibility', 'error');
+    }
+  };
+
+  // Open modal to add or edit review
+  const handleOpenReviewModal = (review = null) => {
+    if (review) {
+      setEditingReview(review);
+      setReviewForm({
+        author_name: review.author_name || '',
+        rating: review.rating || 5,
+        text: review.text || '',
+        relative_time_description: review.relative_time_description || 'Recently',
+        occasion: review.occasion || '',
+        highlight: review.highlight || '',
+        author_url: review.author_url || reviewsSummary.googleMapsUrl || 'https://maps.app.goo.gl/NrA698fpTvKPwvKx6',
+        isDisplayed: review.isDisplayed !== false,
+      });
+    } else {
+      setEditingReview(null);
+      setReviewForm({
+        author_name: '',
+        rating: 5,
+        text: '',
+        relative_time_description: 'Recently',
+        occasion: '',
+        highlight: '',
+        author_url: reviewsSummary.googleMapsUrl || 'https://maps.app.goo.gl/NrA698fpTvKPwvKx6',
+        isDisplayed: true,
+      });
+    }
+    setIsReviewModalOpen(true);
+  };
+
+  // Save review (create or update)
+  const handleSaveReview = async (e) => {
+    e.preventDefault();
+    if (!reviewForm.author_name.trim() || !reviewForm.text.trim()) {
+      showToast('Author name and review text are required.', 'error');
+      return;
+    }
+    setSavingReview(true);
+    try {
+      const url = editingReview
+        ? `${API_BASE_URL}/api/google-reviews/${editingReview._id}`
+        : `${API_BASE_URL}/api/google-reviews`;
+      const method = editingReview ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(reviewForm),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(
+          editingReview ? 'Review updated successfully!' : 'New review added successfully!',
+          'success'
+        );
+        setIsReviewModalOpen(false);
+        // Refresh reviews
+        const refreshRes = await fetch(`${API_BASE_URL}/api/google-reviews/admin`);
+        if (refreshRes.ok) {
+          const rData = await refreshRes.json();
+          if (rData.success) setGoogleReviews(rData.reviews || []);
+        }
+      } else {
+        showToast(data.message || 'Failed to save review', 'error');
+      }
+    } catch {
+      showToast('Network error saving review', 'error');
+    } finally {
+      setSavingReview(false);
+    }
+  };
+
+  // Confirm delete review
+  const handleConfirmDeleteReview = async () => {
+    if (!deletingReview) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/google-reviews/${deletingReview._id}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (data.success) {
+        setGoogleReviews((prev) => prev.filter((r) => r._id !== deletingReview._id));
+        showToast('Review deleted successfully', 'success');
+        setDeletingReview(null);
+      } else {
+        showToast(data.message || 'Failed to delete review', 'error');
+      }
+    } catch {
+      showToast('Network error deleting review', 'error');
+    }
+  };
+
+  // Save Google Place Summary configuration
+  const handleSaveReviewsSummary = async (e) => {
+    e.preventDefault();
+    setSavingReviewsSummary(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/google-reviews/summary`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(summaryForm),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast('Google Place details updated successfully!', 'success');
+        setReviewsSummary(data.data);
+        setIsEditSummaryModalOpen(false);
+      } else {
+        showToast(data.message || 'Failed to update place details', 'error');
+      }
+    } catch {
+      showToast('Network error updating place settings', 'error');
+    } finally {
+      setSavingReviewsSummary(false);
+    }
+  };
+
+  // Sync with Google Maps Places API
+  const handleSyncGoogleReviews = async () => {
+    setSyncingGoogleReviews(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/google-reviews/sync`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: summaryForm.googlePlacesApiKey || reviewsSummary.googlePlacesApiKey }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(
+          `Sync completed! Updated summary & synced ${data.importedCount || 0} reviews.`,
+          'success'
+        );
+        if (data.summary) {
+          setReviewsSummary(data.summary);
+          setSummaryForm(data.summary);
+        }
+        const refreshRes = await fetch(`${API_BASE_URL}/api/google-reviews/admin`);
+        if (refreshRes.ok) {
+          const rData = await refreshRes.json();
+          if (rData.success) setGoogleReviews(rData.reviews || []);
+        }
+      } else {
+        showToast(
+          data.message ||
+            'Could not sync. Ensure your Google Places API Key is entered in Place Settings.',
+          'error'
+        );
+      }
+    } catch {
+      showToast('Network error syncing with Google Places API', 'error');
+    } finally {
+      setSyncingGoogleReviews(false);
+    }
   };
 
   // Only fetch sensitive database items once authenticated
@@ -1412,6 +1682,17 @@ export function AdminPage() {
           >
             <CreditCard className="w-4 h-4" />
             <span>Payment & QR Settings</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('reviews')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all shrink-0 whitespace-nowrap cursor-pointer ${activeTab === 'reviews'
+              ? 'bg-[#7C3F27] text-[#FFF9F3] shadow-xs'
+              : 'bg-[#FFF9F3] text-[#7C3F27] hover:bg-[#FEEDDD] border border-[#D29C83]/30'
+              }`}
+          >
+            <Star className="w-4 h-4 fill-amber-400 text-amber-500" />
+            <span>Google Reviews ({googleReviews.length})</span>
           </button>
 
           <button
@@ -3318,6 +3599,423 @@ export function AdminPage() {
             </div>
           </div>
         )}
+
+        {/* TAB 6: GOOGLE REVIEWS MANAGEMENT */}
+        {activeTab === 'reviews' && (
+          <div className="pt-5 space-y-6 max-w-7xl">
+            {/* Header with Title and Actions */}
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 bg-[#FFF9F3] p-5 sm:p-6 rounded-2xl border border-[#D29C83]/30 shadow-2xs">
+              <div>
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-full bg-amber-500/15 text-amber-600 flex items-center justify-center border border-amber-300">
+                    <Star className="w-5 h-5 fill-amber-500 text-amber-500" />
+                  </div>
+                  <div>
+                    <h3 className="font-serif text-xl text-[#411C10] flex items-center gap-2">
+                      <span>Google Reviews & Business Profile</span>
+                      <span className="text-[11px] font-sans font-semibold bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full border border-emerald-300">
+                        Live Sync Active
+                      </span>
+                    </h3>
+                    <p className="text-xs text-[#7C3F27] mt-0.5">
+                      Manage real customer testimonials linked to your verified Google Maps listing in Avadi.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto">
+                <a
+                  href={reviewsSummary.googleMapsUrl || 'https://maps.app.goo.gl/NrA698fpTvKPwvKx6'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-1.5 bg-[#FFF9F3] hover:bg-[#FEEDDD] text-[#7C3F27] border border-[#D29C83]/40 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-2xs"
+                >
+                  <MapPin className="w-3.5 h-3.5 text-rose-600" />
+                  <span>View Google Maps</span>
+                  <ExternalLink className="w-3 h-3 text-[#A66D54]" />
+                </a>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSummaryForm(reviewsSummary);
+                    setIsEditSummaryModalOpen(true);
+                  }}
+                  className="inline-flex items-center justify-center gap-1.5 bg-[#FEEDDD]/60 hover:bg-[#FEEDDD] text-[#7C3F27] border border-[#D29C83]/40 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-2xs"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                  <span>Place Settings</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleSyncGoogleReviews}
+                  disabled={syncingGoogleReviews}
+                  className="inline-flex items-center justify-center gap-1.5 bg-[#FEEDDD]/80 hover:bg-[#FEEDDD] text-[#7C3F27] border border-[#D29C83]/40 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-2xs disabled:opacity-60"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${syncingGoogleReviews ? 'animate-spin text-amber-600' : ''}`} />
+                  <span>{syncingGoogleReviews ? 'Syncing...' : 'Sync with Google'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleOpenReviewModal()}
+                  className="inline-flex items-center justify-center gap-1.5 bg-[#7C3F27] hover:bg-[#5E2B19] text-[#FEEDDD] px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-md hover:shadow-lg active:scale-95 cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add Review</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Important Rule Banner */}
+            <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200/80 text-amber-900 text-xs flex items-start gap-3 shadow-2xs">
+              <div className="w-6 h-6 rounded-full bg-amber-200 text-amber-800 flex items-center justify-center shrink-0 mt-0.5">
+                <Star className="w-3.5 h-3.5 fill-amber-600 text-amber-600" />
+              </div>
+              <div className="flex-1">
+                <p className="font-semibold text-amber-950">
+                  Strict 4-Star & 5-Star Storefront Filter Active
+                </p>
+                <p className="mt-0.5 text-amber-800/90 leading-relaxed">
+                  Only reviews with <strong className="text-amber-950">4 or 5 stars</strong> and enabled visibility are shown to customers on the website homepage. Any reviews below 4 stars or toggled off remain stored in your admin database and are automatically excluded from the public storefront.
+                </p>
+              </div>
+            </div>
+
+            {/* Key Metric Overview Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-[#FFF9F3] p-4 rounded-2xl border border-[#D29C83]/30 shadow-2xs flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center text-amber-700 font-bold text-lg font-serif">
+                  {reviewsSummary.rating || '5.0'}★
+                </div>
+                <div>
+                  <span className="text-[11px] text-[#A66D54] uppercase tracking-wider block font-semibold">
+                    Google Rating
+                  </span>
+                  <div className="flex items-center gap-0.5 text-amber-500 mt-0.5">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Star key={i} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-[#FFF9F3] p-4 rounded-2xl border border-[#D29C83]/30 shadow-2xs flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-800 font-bold text-lg">
+                  {googleReviews.filter((r) => Number(r.rating) >= 4 && r.isDisplayed).length}
+                </div>
+                <div>
+                  <span className="text-[11px] text-[#A66D54] uppercase tracking-wider block font-semibold">
+                    Live on Website
+                  </span>
+                  <span className="text-xs font-semibold text-emerald-800">
+                    4★ & 5★ Visible
+                  </span>
+                </div>
+              </div>
+
+              <div className="bg-[#FFF9F3] p-4 rounded-2xl border border-[#D29C83]/30 shadow-2xs flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-[#FEEDDD] flex items-center justify-center text-[#7C3F27] font-bold text-lg">
+                  {googleReviews.length}
+                </div>
+                <div>
+                  <span className="text-[11px] text-[#A66D54] uppercase tracking-wider block font-semibold">
+                    Total In Database
+                  </span>
+                  <span className="text-xs text-[#7C3F27] font-medium">
+                    {googleReviews.filter((r) => !r.isDisplayed).length} Hidden
+                  </span>
+                </div>
+              </div>
+
+              <div className="bg-[#FFF9F3] p-4 rounded-2xl border border-[#D29C83]/30 shadow-2xs flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                  <MapPin className="w-6 h-6" />
+                </div>
+                <div className="min-w-0">
+                  <span className="text-[11px] text-[#A66D54] uppercase tracking-wider block font-semibold">
+                    Google Maps Business
+                  </span>
+                  <span className="text-xs font-bold text-[#411C10] truncate block">
+                    {reviewsSummary.placeName || 'Pastry Paws'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Filter and Search Bar */}
+            <div className="bg-[#FFF9F3] p-4 rounded-2xl border border-[#D29C83]/30 shadow-2xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-[#A66D54] absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={reviewsSearchQuery}
+                  onChange={(e) => setReviewsSearchQuery(e.target.value)}
+                  placeholder="Search reviews by customer name, comments, or dessert highlight..."
+                  className="w-full pl-9 pr-8 py-2 text-xs rounded-xl border border-[#D29C83]/40 bg-[#FEEDDD]/30 text-[#411C10] placeholder:text-[#A66D54]/60 focus:outline-none focus:border-[#7C3F27]"
+                />
+                {reviewsSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setReviewsSearchQuery('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#A66D54] hover:text-[#411C10] p-1"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Rating Filter Pills */}
+                <div className="flex items-center gap-1 bg-[#FEEDDD]/40 p-1 rounded-xl border border-[#D29C83]/30 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setReviewsFilterRating('all')}
+                    className={`px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer ${
+                      reviewsFilterRating === 'all'
+                        ? 'bg-[#7C3F27] text-white shadow-2xs'
+                        : 'text-[#7C3F27] hover:bg-[#FEEDDD]'
+                    }`}
+                  >
+                    All Stars
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReviewsFilterRating('5')}
+                    className={`px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer flex items-center gap-1 ${
+                      reviewsFilterRating === '5'
+                        ? 'bg-[#7C3F27] text-white shadow-2xs'
+                        : 'text-[#7C3F27] hover:bg-[#FEEDDD]'
+                    }`}
+                  >
+                    <span>5★</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReviewsFilterRating('4')}
+                    className={`px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer flex items-center gap-1 ${
+                      reviewsFilterRating === '4'
+                        ? 'bg-[#7C3F27] text-white shadow-2xs'
+                        : 'text-[#7C3F27] hover:bg-[#FEEDDD]'
+                    }`}
+                  >
+                    <span>4★</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReviewsFilterRating('below4')}
+                    className={`px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer ${
+                      reviewsFilterRating === 'below4'
+                        ? 'bg-[#7C3F27] text-white shadow-2xs'
+                        : 'text-[#7C3F27] hover:bg-[#FEEDDD]'
+                    }`}
+                  >
+                    &lt;4★
+                  </button>
+                </div>
+
+                {/* Visibility Filter */}
+                <div className="flex items-center gap-1 bg-[#FEEDDD]/40 p-1 rounded-xl border border-[#D29C83]/30 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setReviewsFilterVisibility('all')}
+                    className={`px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer ${
+                      reviewsFilterVisibility === 'all'
+                        ? 'bg-[#7C3F27] text-white shadow-2xs'
+                        : 'text-[#7C3F27] hover:bg-[#FEEDDD]'
+                    }`}
+                  >
+                    All Status
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReviewsFilterVisibility('visible')}
+                    className={`px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer ${
+                      reviewsFilterVisibility === 'visible'
+                        ? 'bg-[#7C3F27] text-white shadow-2xs'
+                        : 'text-[#7C3F27] hover:bg-[#FEEDDD]'
+                    }`}
+                  >
+                    Visible
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReviewsFilterVisibility('hidden')}
+                    className={`px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer ${
+                      reviewsFilterVisibility === 'hidden'
+                        ? 'bg-[#7C3F27] text-white shadow-2xs'
+                        : 'text-[#7C3F27] hover:bg-[#FEEDDD]'
+                    }`}
+                  >
+                    Hidden
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Reviews Cards List */}
+            {filteredGoogleReviews.length === 0 ? (
+              <div className="bg-[#FFF9F3] p-12 text-center rounded-3xl border border-[#D29C83]/30 shadow-2xs space-y-3">
+                <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-700 mx-auto flex items-center justify-center">
+                  <Star className="w-6 h-6" />
+                </div>
+                <h4 className="font-serif text-lg text-[#411C10]">No reviews found matching criteria</h4>
+                <p className="text-xs text-[#7C3F27] max-w-md mx-auto">
+                  Try adjusting your search query or rating filter, or click "Add Review" to record a new customer testimonial.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => handleOpenReviewModal()}
+                  className="inline-flex items-center gap-1.5 bg-[#7C3F27] text-white px-4 py-2 rounded-xl text-xs font-semibold hover:bg-[#5E2B19] transition-all cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add First Review</span>
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {filteredGoogleReviews.map((rev) => {
+                  const isStorefrontVisible = Number(rev.rating) >= 4 && rev.isDisplayed;
+
+                  return (
+                    <div
+                      key={rev._id}
+                      className="bg-[#FFF9F3] rounded-2xl border border-[#D29C83]/30 p-5 shadow-2xs flex flex-col justify-between hover:shadow-xs transition-all relative overflow-hidden"
+                    >
+                      {/* Top Ribbon / Status */}
+                      <div>
+                        <div className="flex items-start justify-between gap-3 mb-3">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-9 h-9 rounded-full bg-[#FEEDDD] text-[#7C3F27] font-bold text-xs flex items-center justify-center border border-[#D29C83]/40 shrink-0">
+                              {(rev.author_name || 'G')[0].toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                              <h5 className="font-semibold text-xs sm:text-sm text-[#411C10] truncate">
+                                {rev.author_name}
+                              </h5>
+                              <span className="text-[10px] text-[#A66D54]">
+                                {rev.relative_time_description || 'Recently'}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1 shrink-0">
+                            <a
+                              href={rev.author_url || reviewsSummary.googleMapsUrl || 'https://maps.app.goo.gl/NrA698fpTvKPwvKx6'}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-1 rounded-lg hover:bg-[#FEEDDD] text-[#7C3F27] transition-colors"
+                              title="Open in Google Maps"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5 text-[#A66D54]" />
+                            </a>
+                          </div>
+                        </div>
+
+                        {/* Star Rating Display */}
+                        <div className="flex items-center gap-1 mb-2.5">
+                          {Array.from({ length: 5 }).map((_, i) => (
+                            <Star
+                              key={i}
+                              className={`w-4 h-4 ${
+                                i < Number(rev.rating)
+                                  ? 'fill-amber-400 text-amber-500'
+                                  : 'text-zinc-300'
+                              }`}
+                            />
+                          ))}
+                          <span className="text-xs font-bold text-[#411C10] ml-1.5">
+                            {rev.rating}.0
+                          </span>
+                        </div>
+
+                        {/* Occasion / Highlight Tags */}
+                        {(rev.highlight || rev.occasion) && (
+                          <div className="flex flex-wrap gap-1.5 mb-3">
+                            {rev.highlight && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-[#FEEDDD] text-[#7C3F27] px-2 py-0.5 rounded-md border border-[#D29C83]/30">
+                                <Sparkles className="w-3 h-3 text-[#C85A32]" />
+                                <span>{rev.highlight}</span>
+                              </span>
+                            )}
+                            {rev.occasion && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-rose-50 text-rose-800 px-2 py-0.5 rounded-md border border-rose-200">
+                                <Tag className="w-3 h-3 text-rose-600" />
+                                <span>{rev.occasion}</span>
+                              </span>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Review Content */}
+                        <p className="text-xs text-[#7C3F27] leading-relaxed italic line-clamp-4 mb-4">
+                          "{rev.text}"
+                        </p>
+                      </div>
+
+                      {/* Card Footer: Status and Actions */}
+                      <div className="pt-3 border-t border-[#D29C83]/20 flex items-center justify-between gap-2">
+                        <div>
+                          {isStorefrontVisible ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                              <CheckCircle2 className="w-3 h-3" />
+                              <span>Visible on Website</span>
+                            </span>
+                          ) : Number(rev.rating) < 4 ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-100 px-2.5 py-0.5 rounded-full border border-amber-200" title="Only 4-5 stars are displayed publicly">
+                              <AlertTriangle className="w-3 h-3" />
+                              <span>Filtered Out (&lt; 4★)</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-zinc-600 bg-zinc-100 px-2.5 py-0.5 rounded-full border border-zinc-200">
+                              <EyeOff className="w-3 h-3" />
+                              <span>Hidden by Admin</span>
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleReviewVisibility(rev)}
+                            className="p-1.5 rounded-lg text-[#7C3F27] hover:bg-[#FEEDDD] transition-colors cursor-pointer"
+                            title={rev.isDisplayed ? 'Hide from website' : 'Show on website'}
+                          >
+                            {rev.isDisplayed ? (
+                              <Eye className="w-4 h-4 text-emerald-700" />
+                            ) : (
+                              <EyeOff className="w-4 h-4 text-zinc-400" />
+                            )}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleOpenReviewModal(rev)}
+                            className="p-1.5 rounded-lg text-[#7C3F27] hover:bg-[#FEEDDD] transition-colors cursor-pointer"
+                            title="Edit Review"
+                          >
+                            <Edit2 className="w-4 h-4 text-[#7C3F27]" />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setDeletingReview(rev)}
+                            className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                            title="Delete Review"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* MODAL: ADD / EDIT MENU ITEM */}
@@ -4366,6 +5064,428 @@ export function AdminPage() {
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+
+        {/* MODAL: ADD / EDIT GOOGLE REVIEW */}
+        {isReviewModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsReviewModalOpen(false)}
+              className="fixed inset-0 bg-[#2C1810]/75 backdrop-blur-sm"
+            />
+
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-lg bg-[#FFF9F3] rounded-3xl border border-[#D29C83]/30 shadow-2xl overflow-hidden my-auto max-h-[90vh] flex flex-col z-10"
+            >
+              <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-[#D29C83]/20 bg-[#FEEDDD]/70">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-full bg-amber-500/20 text-amber-600 flex items-center justify-center">
+                    <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
+                  </div>
+                  <h3 className="font-serif text-lg text-[#411C10]">
+                    {editingReview ? 'Edit Google Review' : 'Add Google Review'}
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsReviewModalOpen(false)}
+                  className="p-1 rounded-xl text-[#7C3F27] hover:bg-[#FEEDDD] transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveReview} className="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1">
+                {/* Author Name */}
+                <div>
+                  <label className="block text-xs font-semibold text-[#411C10] mb-1">
+                    Customer / Reviewer Name <span className="text-rose-600">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={reviewForm.author_name}
+                    onChange={(e) => setReviewForm({ ...reviewForm, author_name: e.target.value })}
+                    placeholder="e.g. Anjali R. or Priya & Vikram"
+                    className="w-full px-3.5 py-2 text-xs rounded-xl border border-[#D29C83]/40 bg-[#FFFDF9] text-[#411C10] focus:outline-none focus:border-[#7C3F27]"
+                  />
+                </div>
+
+                {/* Rating Selection (1-5 Stars) */}
+                <div>
+                  <label className="block text-xs font-semibold text-[#411C10] mb-1">
+                    Rating ({reviewForm.rating} Star{reviewForm.rating > 1 ? 's' : ''}) <span className="text-rose-600">*</span>
+                  </label>
+                  <div className="flex items-center gap-2 bg-[#FEEDDD]/40 p-2.5 rounded-xl border border-[#D29C83]/30">
+                    <div className="flex items-center gap-1">
+                      {[1, 2, 3, 4, 5].map((starVal) => (
+                        <button
+                          key={starVal}
+                          type="button"
+                          onClick={() => setReviewForm({ ...reviewForm, rating: starVal })}
+                          className="p-1 hover:scale-110 transition-transform cursor-pointer"
+                          title={`${starVal} Star${starVal > 1 ? 's' : ''}`}
+                        >
+                          <Star
+                            className={`w-6 h-6 ${
+                              starVal <= reviewForm.rating
+                                ? 'fill-amber-400 text-amber-500'
+                                : 'text-zinc-300'
+                            }`}
+                          />
+                        </button>
+                      ))}
+                    </div>
+                    <span className="text-xs font-semibold text-[#7C3F27] ml-2">
+                      {reviewForm.rating === 5 && '★★★★★ Excellent'}
+                      {reviewForm.rating === 4 && '★★★★☆ Very Good'}
+                      {reviewForm.rating === 3 && '★★★☆☆ Average'}
+                      {reviewForm.rating === 2 && '★★☆☆☆ Fair'}
+                      {reviewForm.rating === 1 && '★☆☆☆☆ Poor'}
+                    </span>
+                  </div>
+
+                  {reviewForm.rating < 4 && (
+                    <p className="mt-1.5 text-[11px] text-amber-800 bg-amber-50 border border-amber-200 p-2 rounded-lg flex items-center gap-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-amber-600" />
+                      <span>Notice: Storefront only displays 4-star and 5-star reviews. This review will be saved in admin but won't be visible to customers.</span>
+                    </p>
+                  )}
+                </div>
+
+                {/* Highlight / Occasion in 2 cols */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-[#411C10] mb-1">
+                      Cake / Dish Highlight
+                    </label>
+                    <input
+                      type="text"
+                      value={reviewForm.highlight}
+                      onChange={(e) => setReviewForm({ ...reviewForm, highlight: e.target.value })}
+                      placeholder="e.g. Lotus Biscoff Cake"
+                      className="w-full px-3.5 py-2 text-xs rounded-xl border border-[#D29C83]/40 bg-[#FFFDF9] text-[#411C10] focus:outline-none focus:border-[#7C3F27]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-[#411C10] mb-1">
+                      Occasion / Event
+                    </label>
+                    <input
+                      type="text"
+                      value={reviewForm.occasion}
+                      onChange={(e) => setReviewForm({ ...reviewForm, occasion: e.target.value })}
+                      placeholder="e.g. Birthday Celebration"
+                      className="w-full px-3.5 py-2 text-xs rounded-xl border border-[#D29C83]/40 bg-[#FFFDF9] text-[#411C10] focus:outline-none focus:border-[#7C3F27]"
+                    />
+                  </div>
+                </div>
+
+                {/* Review Text */}
+                <div>
+                  <label className="block text-xs font-semibold text-[#411C10] mb-1">
+                    Customer Review Feedback <span className="text-rose-600">*</span>
+                  </label>
+                  <textarea
+                    rows={4}
+                    required
+                    value={reviewForm.text}
+                    onChange={(e) => setReviewForm({ ...reviewForm, text: e.target.value })}
+                    placeholder="Write the full customer review from Google Maps..."
+                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-[#D29C83]/40 bg-[#FFFDF9] text-[#411C10] focus:outline-none focus:border-[#7C3F27]"
+                  />
+                </div>
+
+                {/* Relative Time and Google Maps URL */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-[#411C10] mb-1">
+                      Date / Relative Time
+                    </label>
+                    <input
+                      type="text"
+                      value={reviewForm.relative_time_description}
+                      onChange={(e) => setReviewForm({ ...reviewForm, relative_time_description: e.target.value })}
+                      placeholder="e.g. 1 week ago, Recently"
+                      className="w-full px-3.5 py-2 text-xs rounded-xl border border-[#D29C83]/40 bg-[#FFFDF9] text-[#411C10] focus:outline-none focus:border-[#7C3F27]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-[#411C10] mb-1">
+                      Google Maps Link URL
+                    </label>
+                    <input
+                      type="url"
+                      value={reviewForm.author_url}
+                      onChange={(e) => setReviewForm({ ...reviewForm, author_url: e.target.value })}
+                      placeholder="https://maps.app.goo.gl/..."
+                      className="w-full px-3.5 py-2 text-xs rounded-xl border border-[#D29C83]/40 bg-[#FFFDF9] text-[#411C10] focus:outline-none focus:border-[#7C3F27]"
+                    />
+                  </div>
+                </div>
+
+                {/* Display Toggle */}
+                <label className="flex items-center gap-2.5 p-3 rounded-xl bg-[#FEEDDD]/40 border border-[#D29C83]/30 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={reviewForm.isDisplayed}
+                    onChange={(e) => setReviewForm({ ...reviewForm, isDisplayed: e.target.checked })}
+                    className="w-4 h-4 text-[#7C3F27] rounded-sm focus:ring-[#7C3F27]"
+                  />
+                  <span className="text-xs font-semibold text-[#411C10]">
+                    Enable visibility on public storefront (active if rating is 4 or 5 stars)
+                  </span>
+                </label>
+
+                {/* Submit / Cancel Buttons */}
+                <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#D29C83]/20">
+                  <button
+                    type="button"
+                    onClick={() => setIsReviewModalOpen(false)}
+                    className="px-4 py-2 rounded-xl border border-[#D29C83]/40 text-xs font-semibold text-[#7C3F27] hover:bg-[#FEEDDD] transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={savingReview}
+                    className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-[#7C3F27] hover:bg-[#5E2B19] text-[#FEEDDD] text-xs font-semibold transition-all shadow-md active:scale-95 cursor-pointer disabled:opacity-60"
+                  >
+                    {savingReview ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>Saving...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-3.5 h-3.5" />
+                        <span>{editingReview ? 'Update Review' : 'Add Review'}</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+
+        {/* MODAL: EDIT GOOGLE PLACE SUMMARY CONFIG */}
+        {isEditSummaryModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsEditSummaryModalOpen(false)}
+              className="fixed inset-0 bg-[#2C1810]/75 backdrop-blur-sm"
+            />
+
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-lg bg-[#FFF9F3] rounded-3xl border border-[#D29C83]/30 shadow-2xl overflow-hidden my-auto max-h-[90vh] flex flex-col z-10"
+            >
+              <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-[#D29C83]/20 bg-[#FEEDDD]/70">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center">
+                    <MapPin className="w-4 h-4" />
+                  </div>
+                  <h3 className="font-serif text-lg text-[#411C10]">
+                    Google Business Place Settings
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsEditSummaryModalOpen(false)}
+                  className="p-1 rounded-xl text-[#7C3F27] hover:bg-[#FEEDDD] transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveReviewsSummary} className="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1">
+                <div>
+                  <label className="block text-xs font-semibold text-[#411C10] mb-1">
+                    Google Business Listing Name
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={summaryForm.placeName}
+                    onChange={(e) => setSummaryForm({ ...summaryForm, placeName: e.target.value })}
+                    placeholder="Pastry Paws"
+                    className="w-full px-3.5 py-2 text-xs rounded-xl border border-[#D29C83]/40 bg-[#FFFDF9] text-[#411C10] focus:outline-none focus:border-[#7C3F27]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-[#411C10] mb-1">
+                    Google Maps Short Link URL
+                  </label>
+                  <input
+                    type="url"
+                    required
+                    value={summaryForm.googleMapsUrl}
+                    onChange={(e) => setSummaryForm({ ...summaryForm, googleMapsUrl: e.target.value })}
+                    placeholder="https://maps.app.goo.gl/NrA698fpTvKPwvKx6"
+                    className="w-full px-3.5 py-2 text-xs rounded-xl border border-[#D29C83]/40 bg-[#FFFDF9] text-[#411C10] focus:outline-none focus:border-[#7C3F27]"
+                  />
+                  <p className="text-[10px] text-[#A66D54] mt-1">
+                    Customers clicking "View on Google Maps" or "Review Pastry Paws" will be routed directly to this link.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-[#411C10] mb-1">
+                      Display Rating
+                    </label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="1"
+                      max="5"
+                      value={summaryForm.rating}
+                      onChange={(e) => setSummaryForm({ ...summaryForm, rating: parseFloat(e.target.value) || 5.0 })}
+                      className="w-full px-3.5 py-2 text-xs rounded-xl border border-[#D29C83]/40 bg-[#FFFDF9] text-[#411C10] focus:outline-none focus:border-[#7C3F27]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-[#411C10] mb-1">
+                      Review Count Badge Text
+                    </label>
+                    <input
+                      type="text"
+                      value={summaryForm.reviewsCount}
+                      onChange={(e) => setSummaryForm({ ...summaryForm, reviewsCount: e.target.value })}
+                      placeholder="5.0 ★★★★★ on Google"
+                      className="w-full px-3.5 py-2 text-xs rounded-xl border border-[#D29C83]/40 bg-[#FFFDF9] text-[#411C10] focus:outline-none focus:border-[#7C3F27]"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-[#411C10] mb-1">
+                    Google Place ID
+                  </label>
+                  <input
+                    type="text"
+                    value={summaryForm.placeId}
+                    onChange={(e) => setSummaryForm({ ...summaryForm, placeId: e.target.value })}
+                    placeholder="ChIJ9a1uLoipUjoR-t29x-KVXvc"
+                    className="w-full px-3.5 py-2 text-xs rounded-xl border border-[#D29C83]/40 bg-[#FFFDF9] text-[#411C10] font-mono focus:outline-none focus:border-[#7C3F27]"
+                  />
+                  <p className="text-[10px] text-[#A66D54] mt-1">
+                    Resolved Place ID for Pastry Paws Avadi: <span className="font-mono text-[#7C3F27]">ChIJ9a1uLoipUjoR-t29x-KVXvc</span>
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-[#411C10] mb-1">
+                    Google Places API Key (Optional)
+                  </label>
+                  <input
+                    type="password"
+                    value={summaryForm.googlePlacesApiKey || ''}
+                    onChange={(e) => setSummaryForm({ ...summaryForm, googlePlacesApiKey: e.target.value })}
+                    placeholder="AIzaSy..."
+                    className="w-full px-3.5 py-2 text-xs rounded-xl border border-[#D29C83]/40 bg-[#FFFDF9] text-[#411C10] font-mono focus:outline-none focus:border-[#7C3F27]"
+                  />
+                  <p className="text-[10px] text-[#A66D54] mt-1">
+                    Optional: If supplied, clicking "Sync with Google" will automatically fetch new reviews directly from Google Places API.
+                  </p>
+                </div>
+
+                {/* Submit / Cancel Buttons */}
+                <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#D29C83]/20">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditSummaryModalOpen(false)}
+                    className="px-4 py-2 rounded-xl border border-[#D29C83]/40 text-xs font-semibold text-[#7C3F27] hover:bg-[#FEEDDD] transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={savingReviewsSummary}
+                    className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-[#7C3F27] hover:bg-[#5E2B19] text-[#FEEDDD] text-xs font-semibold transition-all shadow-md active:scale-95 cursor-pointer disabled:opacity-60"
+                  >
+                    {savingReviewsSummary ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>Saving...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Save Place Details</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+
+        {/* MODAL: DELETE REVIEW CONFIRMATION */}
+        {deletingReview && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setDeletingReview(null)}
+              className="fixed inset-0 bg-[#2C1810]/75 backdrop-blur-sm"
+            />
+
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="relative w-full max-w-sm bg-[#FFF9F3] rounded-3xl border border-[#D29C83]/30 p-6 shadow-2xl space-y-4 text-center z-10"
+            >
+              <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 mx-auto flex items-center justify-center">
+                <Trash2 className="w-6 h-6" />
+              </div>
+
+              <div>
+                <h4 className="font-serif text-lg text-[#411C10]">Delete Customer Review?</h4>
+                <p className="text-xs text-[#7C3F27] mt-1.5 leading-relaxed">
+                  Are you sure you want to remove the review by <strong className="text-[#411C10]">{deletingReview.author_name}</strong>? This action cannot be undone.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setDeletingReview(null)}
+                  className="px-4 py-2 rounded-xl border border-[#D29C83]/40 text-xs font-semibold text-[#7C3F27] hover:bg-[#FEEDDD] transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDeleteReview}
+                  className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold transition-all shadow-md active:scale-95 cursor-pointer"
+                >
+                  Delete Review
+                </button>
+              </div>
             </motion.div>
           </div>
         )}
