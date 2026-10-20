@@ -17,7 +17,7 @@ export const brandConfig = {
     email: "pastry.paws012@gmail.com",
     phone: "+91 9790983844",
     serviceArea: "Freshly baked & hand-delivered locally. Custom orders require advance notice.",
-    hours: "Mon – Sat: 24 Hr Available (Freshly baked to order)",
+    hours: "Mon –  sun: 24 Hr Available (Freshly baked to order)",
     pickupLocation: "Home Bakery Studio • Pastry Paws"
   },
 
