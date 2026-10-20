@@ -1,37 +1,56 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
+import { Link } from 'react-router-dom';
 import {
   X,
-  ShoppingBag,
-  Sparkles,
   CheckCircle2,
+  ShoppingBag,
+  Phone,
+  MapPin,
   Calendar,
   Clock,
-  MapPin,
-  Phone,
   User,
-  MessageCircle,
-  ShieldCheck,
+  Download,
   CreditCard,
   Truck,
-  Download,
-  FileText,
+  QrCode,
+  Copy,
+  Check,
+  Upload,
+  ShieldCheck,
+  AlertCircle,
+  ArrowLeft,
+  ArrowRight,
+  ExternalLink,
+  Image as ImageIcon,
+  RefreshCw,
+  Sparkles,
 } from 'lucide-react';
 import { brandConfig } from '../data/brand';
 import { API_BASE_URL } from '../utils/api';
 import { printOrderInvoice } from '../utils/invoiceGenerator';
 
 export function OrderModal({ isOpen, onClose, item, selectedTier }) {
+  const [modalStep, setModalStep] = useState('details'); // 'details' | 'payment'
+
+  // Step 1: Customer & Delivery Details
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
     address: '',
     deliveryDate: '',
-    deliveryTime: 'Afternoon (12 PM - 4 PM)',
+    deliveryTime: 'Afternoon (1 PM - 5 PM)',
     notes: '',
   });
 
+  // Step 2: Payment Details (UPI / Google Pay)
+  const [paymentScreenshot, setPaymentScreenshot] = useState('');
+  const [paymentScreenshotPublicId, setPaymentScreenshotPublicId] = useState('');
+  const [isUploadingScreenshot, setIsUploadingScreenshot] = useState(false);
+  const [transactionId, setTransactionId] = useState('');
+  const [copiedUpi, setCopiedUpi] = useState(false);
+
+  const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [placedOrder, setPlacedOrder] = useState(null);
 
@@ -39,36 +58,149 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
 
   const currentTier = selectedTier || (item.pricingDetails && item.pricingDetails[0]) || {
     size: 'Standard',
-    price: `₹${item.startingPrice}/-`,
+    price: `₹${item.startingPrice || 299}/-`,
   };
+
+  // Clean numeric price for UPI payment URI (e.g. "₹399/-" -> "399")
+  const numericPrice = (currentTier.price || '').replace(/[^0-9]/g, '') || '299';
+  const upiId = brandConfig.payment?.upiId || '9790983844@okaxis';
+  const payeeName = brandConfig.payment?.payeeName || 'Pastry Paws';
+
+  // Standard NPCI UPI URI Scheme (compatible with Google Pay, PhonePe, Paytm, BHIM)
+  const upiDeepLink = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(
+    payeeName
+  )}&am=${encodeURIComponent(numericPrice)}&cu=INR&tn=${encodeURIComponent(
+    `Pastry Paws ${item.title}`
+  )}`;
+
+  // Dynamic QR code generated with exact order amount
+  const upiQrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(
+    upiDeepLink
+  )}`;
 
   const handleChange = (e) => {
     setFormData((prev) => ({
       ...prev,
       [e.target.name]: e.target.value,
     }));
+    if (formError) setFormError('');
   };
 
-  const handleSubmit = async (e) => {
+  const handleCopyUpi = () => {
+    navigator.clipboard.writeText(upiId);
+    setCopiedUpi(true);
+    setTimeout(() => setCopiedUpi(false), 2500);
+  };
+
+  // Upload Payment Screenshot via Multer / Cloudinary backend endpoint
+  const handleScreenshotFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setFormError('Please select a valid image file (PNG, JPG, JPEG, WEBP).');
+      return;
+    }
+
+    if (file.size > 12 * 1024 * 1024) {
+      setFormError('File size is too large. Please upload an image under 12MB.');
+      return;
+    }
+
+    setIsUploadingScreenshot(true);
+    setFormError('');
+
+    const uploadFormData = new FormData();
+    uploadFormData.append('image', file);
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/upload`, {
+        method: 'POST',
+        body: uploadFormData,
+      });
+
+      const data = await res.json();
+      if (data.success && data.imageUrl) {
+        setPaymentScreenshot(data.imageUrl);
+        setPaymentScreenshotPublicId(data.publicId || '');
+      } else {
+        setFormError(data.message || 'Error uploading screenshot. Please try again.');
+      }
+    } catch {
+      // Local preview fallback if offline
+      const localUrl = URL.createObjectURL(file);
+      setPaymentScreenshot(localUrl);
+    } finally {
+      setIsUploadingScreenshot(false);
+    }
+  };
+
+  // Advance from Step 1 (Details) to Step 2 (UPI Payment)
+  const handleProceedToPayment = (e) => {
     e.preventDefault();
+    setFormError('');
+
+    if (!formData.name.trim() || formData.name.trim().length < 2) {
+      setFormError('Please enter your full name (at least 2 characters).');
+      return;
+    }
+
+    const cleanPhone = formData.phone.replace(/\D/g, '');
+    if (cleanPhone.length !== 10) {
+      setFormError('Please enter a valid 10-digit mobile phone number.');
+      return;
+    }
+
+    if (!formData.address.trim() || formData.address.trim().length < 5) {
+      setFormError('Please enter your complete delivery address (street, area, landmark).');
+      return;
+    }
+
+    if (!formData.deliveryDate) {
+      setFormError('Please select your preferred delivery date.');
+      return;
+    }
+
+    setModalStep('payment');
+  };
+
+  // Final Order Submission with Payment Proof & Anti-Fraud Checks
+  const handleFinalOrderSubmit = async (e) => {
+    e.preventDefault();
+    setFormError('');
+
+    if (!paymentScreenshot) {
+      setFormError('Payment screenshot is required. Please upload the screenshot of your UPI / GPay payment.');
+      return;
+    }
+
+    const cleanTxId = transactionId.trim().replace(/\s+/g, '').toUpperCase();
+    if (!cleanTxId || cleanTxId.length < 8) {
+      setFormError('Please enter a valid 12-digit UPI Transaction ID / UTR reference number.');
+      return;
+    }
+
     setIsSubmitting(true);
 
     const orderPayload = {
-      customerName: formData.name,
-      customerPhone: formData.phone,
-      deliveryAddress: formData.address,
+      customerName: formData.name.trim(),
+      customerPhone: formData.phone.trim(),
+      deliveryAddress: formData.address.trim(),
       deliveryDate: formData.deliveryDate,
       deliveryTime: formData.deliveryTime,
-      notes: formData.notes,
+      notes: formData.notes ? formData.notes.trim() : '',
       itemTitle: item.title,
-      category: item.category,
+      category: item.category || '',
       selectedSize: currentTier.size,
       price: currentTier.price,
       itemImage: item.image,
+      paymentMethod: 'Google Pay / UPI',
+      paymentScreenshot: paymentScreenshot,
+      paymentScreenshotPublicId: paymentScreenshotPublicId,
+      transactionId: cleanTxId,
     };
 
     try {
-      // Send to backend API
       const res = await fetch(`${API_BASE_URL}/api/orders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -76,20 +208,18 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
       });
 
       const data = await res.json();
-      if (data.success && data.data) {
+      if (res.ok && data.success && data.data) {
         setPlacedOrder(data.data);
       } else {
-        // Fallback local order ID if backend is offline
-        setPlacedOrder({
-          orderId: `PP-${Date.now().toString().slice(-6)}`,
-          ...orderPayload,
-        });
+        // Show specific anti-fraud or validation error message
+        setFormError(data.message || 'Unable to place order. Please check the details and try again.');
       }
     } catch {
-      // Graceful offline fallback
+      // Offline fallback
       setPlacedOrder({
         orderId: `PP-${Date.now().toString().slice(-6)}`,
         ...orderPayload,
+        paymentStatus: 'pending_verification',
       });
     } finally {
       setIsSubmitting(false);
@@ -98,22 +228,27 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
 
   const handleResetAndClose = () => {
     setPlacedOrder(null);
+    setModalStep('details');
     setFormData({
       name: '',
       phone: '',
       address: '',
       deliveryDate: '',
-      deliveryTime: 'Afternoon (12 PM - 4 PM)',
+      deliveryTime: 'Afternoon (1 PM - 5 PM)',
       notes: '',
     });
+    setPaymentScreenshot('');
+    setPaymentScreenshotPublicId('');
+    setTransactionId('');
+    setFormError('');
     onClose();
   };
 
-  // Pre-filled WhatsApp link for order confirmation copy
+  // Pre-filled WhatsApp link with complete receipt & payment verification details
   const whatsappReceiptUrl = placedOrder
     ? `https://wa.me/${brandConfig.contact.whatsappNumber}?text=${encodeURIComponent(
-        `Hello Pastry Paws! I just placed an order on your website:\n\n*Order ID:* ${placedOrder.orderId}\n*Item:* ${placedOrder.itemTitle} (${placedOrder.selectedSize})\n*Price:* ${placedOrder.price}\n*Customer:* ${placedOrder.customerName} (${placedOrder.customerPhone})\n*Address:* ${placedOrder.deliveryAddress}\n\nPlease confirm my order. Thank you!`
-      )}`
+      `Hello Pastry Paws! I just placed an order with UPI payment proof:\n\n*Order ID:* ${placedOrder.orderId}\n*Item:* ${placedOrder.itemTitle} (${placedOrder.selectedSize})\n*Amount:* ${placedOrder.price}\n*Customer:* ${placedOrder.customerName} (${placedOrder.customerPhone})\n*Address:* ${placedOrder.deliveryAddress}\n*Delivery Date:* ${placedOrder.deliveryDate} (${placedOrder.deliveryTime})\n*UPI UTR / Ref No:* ${placedOrder.transactionId}\n*Payment Status:* Verification Pending\n\nPlease verify my payment and confirm. Thank you!`
+    )}`
     : '#';
 
   return (
@@ -134,7 +269,7 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
           transition={{ type: 'spring', duration: 0.4, bounce: 0.1 }}
-          className="relative w-full max-w-lg bg-[#FFF9F3] rounded-3xl border border-[#D29C83]/30 shadow-2xl overflow-hidden my-auto max-h-[90vh] flex flex-col"
+          className="relative w-full max-w-lg bg-[#FFF9F3] rounded-3xl border border-[#D29C83]/30 shadow-2xl overflow-hidden my-auto max-h-[92vh] flex flex-col"
         >
           {/* Header */}
           <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-[#D29C83]/20 bg-[#FEEDDD]/70">
@@ -144,26 +279,34 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
               </div>
               <div>
                 <h3 className="font-serif text-lg sm:text-xl text-[#411C10] font-normal leading-tight">
-                  {placedOrder ? 'Order Confirmed!' : 'Place Your Order'}
+                  {placedOrder
+                    ? 'Order Submitted!'
+                    : modalStep === 'payment'
+                      ? 'Step 2: Pay via Google Pay / UPI'
+                      : 'Step 1: Delivery Details'}
                 </h3>
                 <p className="text-[11px] text-[#7C3F27]">
-                  {placedOrder ? 'Freshly baked upon confirmation' : 'Freshly baked to order with premium ingredients'}
+                  {placedOrder
+                    ? 'Payment proof received • Studio verification in progress'
+                    : modalStep === 'payment'
+                      ? 'Scan QR or copy UPI ID, then upload your screenshot'
+                      : 'Freshly baked to order with pure artisan ingredients'}
                 </p>
               </div>
             </div>
             <button
               onClick={handleResetAndClose}
-              className="p-1.5 rounded-full text-[#7C3F27] hover:bg-[#FEE5D2] transition-colors"
+              className="p-1.5 rounded-full text-[#7C3F27] hover:bg-[#FEE5D2] transition-colors cursor-pointer"
               aria-label="Close modal"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
 
-          <div className="overflow-y-auto p-5 sm:p-6 space-y-5">
+          <div className="overflow-y-auto p-5 sm:p-6 space-y-4">
+            {/* SCREEN 1: SUCCESS / CONFIRMATION */}
             {placedOrder ? (
-              /* Success / Receipt Screen */
-              <div className="space-y-5 text-center py-2">
+              <div className="space-y-4 text-center py-1">
                 <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-inner">
                   <CheckCircle2 className="w-9 h-9 stroke-[2.5]" />
                 </div>
@@ -176,69 +319,81 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
                     Thank You, {placedOrder.customerName}!
                   </h4>
                   <p className="text-xs text-[#7C3F27] mt-1">
-                    Your order for <strong>{placedOrder.itemTitle}</strong> has been registered.
+                    Your order for <strong>{placedOrder.itemTitle}</strong> has been registered with payment proof.
                   </p>
                 </div>
 
-                {/* Receipt Card */}
-                <div className="bg-[#FEEDDD]/40 rounded-2xl p-4 border border-[#D29C83]/25 text-left text-xs space-y-2">
+                {/* Status Notice */}
+                <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-300 text-amber-950 text-left space-y-1">
+                  <div className="flex items-center gap-2 font-bold text-xs text-amber-900">
+                    <Clock className="w-4 h-4 text-amber-700 shrink-0" />
+                    <span>Payment Verification Pending</span>
+                  </div>
+                  <p className="text-[11px] text-amber-900/90 leading-relaxed">
+                    We received your payment screenshot and <strong>UTR #{placedOrder.transactionId}</strong>. Our studio is verifying this transaction with our bank statement before moving your order to the oven!
+                  </p>
+                </div>
+
+                {/* Order Summary Receipt */}
+                <div className="bg-[#FEEDDD]/50 rounded-2xl p-4 border border-[#D29C83]/25 text-left text-xs space-y-2">
                   <div className="flex justify-between pb-2 border-b border-[#D29C83]/20">
                     <span className="text-[#A66D54]">Item & Portion:</span>
                     <span className="font-semibold text-[#411C10]">{placedOrder.itemTitle} ({placedOrder.selectedSize})</span>
                   </div>
                   <div className="flex justify-between pb-2 border-b border-[#D29C83]/20">
-                    <span className="text-[#A66D54]">Total Amount:</span>
+                    <span className="text-[#A66D54]">Amount Paid:</span>
                     <span className="font-bold text-[#7C3F27] text-sm">{placedOrder.price}</span>
                   </div>
                   <div className="flex justify-between pb-2 border-b border-[#D29C83]/20">
-                    <span className="text-[#A66D54]">Contact:</span>
-                    <span className="text-[#411C10]">{placedOrder.customerPhone}</span>
+                    <span className="text-[#A66D54]">UPI Transaction ID / UTR:</span>
+                    <span className="font-mono font-bold text-[#411C10] bg-[#FFF9F3] px-2 py-0.5 rounded border border-[#D29C83]/30">
+                      {placedOrder.transactionId}
+                    </span>
+                  </div>
+                  <div className="flex justify-between pb-2 border-b border-[#D29C83]/20">
+                    <span className="text-[#A66D54]">Delivery Target:</span>
+                    <span className="text-[#411C10]">{placedOrder.deliveryDate} ({placedOrder.deliveryTime})</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-[#A66D54]">Delivery Address:</span>
-                    <span className="text-[#411C10] max-w-[60%] text-right">{placedOrder.deliveryAddress}</span>
+                    <span className="text-[#411C10] max-w-[60%] text-right truncate">{placedOrder.deliveryAddress}</span>
                   </div>
                 </div>
 
-                {/* UPI Coming Soon Notice */}
-                <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-left flex items-start gap-2.5">
-                  <CreditCard className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
-                  <div className="text-[11px] leading-relaxed">
-                    <strong>Payment Note:</strong> Direct UPI payment gateway is being connected. For now, you can pay via UPI or Cash upon delivery/pickup.
-                  </div>
-                </div>
-
-                {/* Action Buttons */}
+                {/* Actions */}
                 <div className="flex flex-col gap-2 pt-2">
+                  <a
+                    href={whatsappReceiptUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold transition-all shadow-md active:scale-[0.98]"
+                  >
+                    <span>Send Order & Payment Receipt via WhatsApp</span>
+                  </a>
+
                   <div className="flex flex-col sm:flex-row gap-2.5">
                     <button
                       type="button"
                       onClick={() => printOrderInvoice(placedOrder)}
-                      className="flex-1 inline-flex items-center justify-center gap-2 bg-[#7C3F27] text-[#FEEDDD] hover:bg-[#5E2B19] py-2.5 px-4 rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-md hover:shadow-lg active:scale-[0.98] cursor-pointer"
+                      className="flex-1 inline-flex items-center justify-center gap-2 bg-[#7C3F27] text-[#FEEDDD] hover:bg-[#5E2B19] py-2.5 px-4 rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-xs cursor-pointer"
                     >
                       <Download className="w-4 h-4 text-[#F9C8B5]" />
-                      <span>Download Invoice (PDF)</span>
+                      <span>Download Bill (PDF)</span>
                     </button>
-                    <button
+                    <Link
+                      to={`/track-order?phone=${encodeURIComponent(placedOrder.customerPhone || '')}`}
                       onClick={handleResetAndClose}
-                      className="inline-flex items-center justify-center py-2.5 px-5 rounded-xl border border-[#D29C83]/40 text-[#411C10] hover:bg-[#FEEDDD] text-xs sm:text-sm font-medium transition-colors cursor-pointer"
+                      className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-[#FEEDDD] text-[#7C3F27] hover:bg-[#FEE5D2] border border-[#D29C83]/40 text-xs sm:text-sm font-semibold transition-colors"
                     >
-                      Close
-                    </button>
+                      <Truck className="w-4 h-4" />
+                      <span>Track Order</span>
+                    </Link>
                   </div>
-                  <Link
-                    to={`/track-order?phone=${encodeURIComponent(placedOrder.customerPhone || '')}`}
-                    onClick={handleResetAndClose}
-                    className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-[#FEEDDD] text-[#7C3F27] hover:bg-[#FEE5D2] border border-[#D29C83]/30 text-xs sm:text-sm font-semibold transition-colors"
-                  >
-                    <Truck className="w-4 h-4" />
-                    <span>Track Live Status & Past Orders</span>
-                  </Link>
                 </div>
               </div>
-            ) : (
-              /* Order Form Screen */
-              <form onSubmit={handleSubmit} className="space-y-4">
+            ) : modalStep === 'details' ? (
+              /* SCREEN 2: STEP 1 - CUSTOMER & DELIVERY DETAILS */
+              <form onSubmit={handleProceedToPayment} className="space-y-4">
                 {/* Selected Item Summary */}
                 <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-[#FEEDDD]/50 border border-[#D29C83]/30">
                   <img
@@ -264,7 +419,14 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
                   </div>
                 </div>
 
-                {/* Customer Details */}
+                {formError && (
+                  <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                    <span>{formError}</span>
+                  </div>
+                )}
+
+                {/* Customer Details Form */}
                 <div className="space-y-3">
                   <div>
                     <label className="block text-xs font-semibold text-[#411C10] mb-1">
@@ -303,6 +465,7 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
                         onChange={(e) => {
                           const val = e.target.value.replace(/\D/g, '').slice(0, 10);
                           setFormData((prev) => ({ ...prev, phone: val }));
+                          if (formError) setFormError('');
                         }}
                         placeholder="10-digit mobile number (e.g. 9876543210)"
                         className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#D29C83]/40 bg-[#FFF9F3] text-[#411C10] placeholder:text-[#A66D54]/50 focus:outline-none focus:border-[#7C3F27]"
@@ -384,21 +547,275 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
                   </div>
                 </div>
 
-                {/* Notice & Button */}
+                {/* Continue to Payment Button */}
                 <div className="pt-2">
                   <button
                     type="submit"
-                    disabled={isSubmitting}
-                    className="w-full inline-flex items-center justify-center gap-2 bg-[#7C3F27] text-[#FEEDDD] hover:bg-[#5E2B19] py-3 px-5 rounded-2xl text-sm font-medium tracking-wide transition-all shadow-md hover:shadow-lg active:scale-[0.98] disabled:opacity-60"
+                    className="w-full inline-flex items-center justify-center gap-2 bg-[#7C3F27] text-[#FEEDDD] hover:bg-[#5E2B19] py-3 px-5 rounded-2xl text-sm font-semibold tracking-wide transition-all shadow-md hover:shadow-lg active:scale-[0.98] cursor-pointer"
                   >
-                    <ShoppingBag className="w-4 h-4 text-[#F9C8B5]" />
-                    <span>
-                      {isSubmitting ? 'Placing Order...' : `Confirm Order (${currentTier.price})`}
-                    </span>
+                    <span>Continue to Payment ({currentTier.price})</span>
+                    <ArrowRight className="w-4 h-4" />
                   </button>
                   <p className="text-[10px] text-center text-[#A66D54] mt-2">
-                    🔒 Instant confirmation. UPI online payment option will be active soon.
+                    Next: Pay with Google Pay / UPI QR & upload payment receipt screenshot
                   </p>
+                </div>
+              </form>
+            ) : (
+              /* SCREEN 3: STEP 2 - GOOGLE PAY / UPI PAYMENT & PROOF UPLOAD */
+              <form onSubmit={handleFinalOrderSubmit} className="space-y-4">
+                {/* Back to details button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModalStep('details');
+                    setFormError('');
+                  }}
+                  className="inline-flex items-center gap-1.5 text-xs text-[#7C3F27] hover:text-[#411C10] font-medium transition-colors cursor-pointer"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>Edit Delivery Details</span>
+                </button>
+
+                {/* Amount to pay summary card */}
+                <div className="bg-[#FEEDDD]/60 border border-[#D29C83]/40 rounded-2xl p-3.5 flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-[#A66D54] tracking-wider block">
+                      Payable Amount
+                    </span>
+                    <h4 className="font-serif text-lg text-[#411C10] font-bold">
+                      {item.title} ({currentTier.size})
+                    </h4>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-xl font-serif font-bold text-[#7C3F27] block">
+                      {currentTier.price}
+                    </span>
+                    <span className="text-[10px] text-emerald-800 bg-emerald-100 font-semibold px-2 py-0.5 rounded-full border border-emerald-200">
+                      Zero convenience fees
+                    </span>
+                  </div>
+                </div>
+
+                {/* UPI QR & Payment Options Box */}
+                <div className="bg-[#FFF9F3] border border-[#D29C83]/40 rounded-3xl p-4 sm:p-5 shadow-inner space-y-4 text-center">
+                  <div className="space-y-1">
+                    <div className="inline-flex items-center gap-1.5 bg-[#FEEDDD] px-3 py-1 rounded-full text-[11px] font-semibold text-[#7C3F27] border border-[#D29C83]/30">
+                      <QrCode className="w-3.5 h-3.5" />
+                      <span>Scan QR to Pay via Google Pay / Any UPI App</span>
+                    </div>
+                  </div>
+
+                  {/* QR Code Container */}
+                  <div className="flex flex-col items-center justify-center gap-3">
+                    <div className="p-3 bg-white rounded-2xl border-2 border-[#D29C83]/40 shadow-sm relative group">
+                      <img
+                        src={upiQrCodeUrl}
+                        alt="UPI Payment QR Code"
+                        className="w-36 h-36 sm:w-40 sm:h-40 object-contain mx-auto"
+                      />
+                      <div className="text-[10px] font-semibold text-center text-[#7C3F27] mt-1">
+                        Amount: {currentTier.price}
+                      </div>
+                    </div>
+
+                    {/* Supported Apps Badges */}
+                    <div className="flex items-center justify-center gap-2 text-[10px] text-[#A66D54] font-medium">
+                      <span className="bg-[#FEEDDD] px-2 py-0.5 rounded-md border border-[#D29C83]/30 font-semibold text-[#411C10]">
+                        Google Pay
+                      </span>
+                      <span>•</span>
+                      <span className="bg-[#FEEDDD] px-2 py-0.5 rounded-md border border-[#D29C83]/30 font-semibold text-[#411C10]">
+                        PhonePe
+                      </span>
+                      <span>•</span>
+                      <span className="bg-[#FEEDDD] px-2 py-0.5 rounded-md border border-[#D29C83]/30 font-semibold text-[#411C10]">
+                        Paytm
+                      </span>
+                      <span>•</span>
+                      <span className="bg-[#FEEDDD] px-2 py-0.5 rounded-md border border-[#D29C83]/30 font-semibold text-[#411C10]">
+                        BHIM
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* UPI ID Copy Bar & Mobile Deep Link */}
+                  <div className="space-y-2 pt-1 border-t border-[#D29C83]/20">
+                    <div className="flex items-center justify-between bg-[#FEEDDD]/70 border border-[#D29C83]/40 rounded-xl px-3 py-2 text-xs">
+                      <div className="text-left">
+                        <span className="text-[9px] uppercase tracking-wider text-[#A66D54] block font-semibold">
+                          UPI ID
+                        </span>
+                        <span className="font-mono font-bold text-[#411C10]">
+                          {upiId}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleCopyUpi}
+                        className="inline-flex items-center gap-1 bg-[#7C3F27] hover:bg-[#5E2B19] text-[#FEEDDD] px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer shadow-2xs"
+                      >
+                        {copiedUpi ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 text-emerald-300" />
+                            <span>Copied!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5" />
+                            <span>Copy</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Mobile Quick Pay Intent */}
+                    <a
+                      href={upiDeepLink}
+                      className="sm:hidden w-full inline-flex items-center justify-center gap-2 bg-[#FEE5D2] hover:bg-[#FEEDDD] text-[#7C3F27] border border-[#D29C83]/40 py-2 px-3 rounded-xl text-xs font-semibold transition-colors"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>Tap to Open Google Pay / PhonePe on Phone</span>
+                    </a>
+                  </div>
+                </div>
+
+                {/* MANDATORY PROOF SECTION */}
+                <div className="space-y-3.5 pt-1">
+                  <div className="flex items-center gap-2 border-b border-[#D29C83]/20 pb-1.5">
+                    <Sparkles className="w-4 h-4 text-[#7C3F27]" />
+                    <h5 className="text-xs uppercase tracking-wider font-bold text-[#411C10]">
+                      Provide Payment Proof (Required)
+                    </h5>
+                  </div>
+
+                  {/* 1. Payment Screenshot Upload */}
+                  <div>
+                    <label className="block text-xs font-semibold text-[#411C10] mb-1.5">
+                      1. Upload Payment Screenshot <span className="text-rose-500">*</span>
+                    </label>
+
+                    {paymentScreenshot ? (
+                      <div className="flex items-center gap-3 p-3 rounded-2xl bg-emerald-50/80 border border-emerald-300">
+                        <img
+                          src={paymentScreenshot}
+                          alt="Uploaded payment screenshot"
+                          className="w-14 h-14 rounded-xl object-cover border border-emerald-300 shrink-0"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <span className="text-xs font-bold text-emerald-900 flex items-center gap-1">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                            Screenshot Attached
+                          </span>
+                          <p className="text-[10px] text-emerald-700 truncate mt-0.5">
+                            Image verified & ready for studio review
+                          </p>
+                        </div>
+                        <label className="text-xs text-[#7C3F27] hover:underline font-semibold cursor-pointer shrink-0">
+                          Change
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleScreenshotFileChange}
+                            disabled={isUploadingScreenshot}
+                            className="hidden"
+                          />
+                        </label>
+                      </div>
+                    ) : (
+                      <label className="border-2 border-dashed border-[#D29C83]/60 hover:border-[#7C3F27] bg-[#FEEDDD]/40 hover:bg-[#FEEDDD]/70 rounded-2xl p-4 flex flex-col items-center justify-center gap-1.5 cursor-pointer transition-all">
+                        {isUploadingScreenshot ? (
+                          <div className="flex flex-col items-center gap-2 py-1">
+                            <RefreshCw className="w-5 h-5 text-[#7C3F27] animate-spin" />
+                            <span className="text-xs font-semibold text-[#7C3F27]">
+                              Uploading screenshot to secure storage...
+                            </span>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="w-9 h-9 rounded-full bg-[#FEEDDD] text-[#7C3F27] flex items-center justify-center border border-[#D29C83]/30">
+                              <Upload className="w-4 h-4" />
+                            </div>
+                            <span className="text-xs font-semibold text-[#411C10]">
+                              Click or tap to upload payment screenshot
+                            </span>
+                            <span className="text-[10px] text-[#A66D54]">
+                              PNG, JPG, or WEBP from Google Pay / PhonePe / Paytm receipt
+                            </span>
+                          </>
+                        )}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          required
+                          onChange={handleScreenshotFileChange}
+                          disabled={isUploadingScreenshot}
+                          className="hidden"
+                        />
+                      </label>
+                    )}
+                  </div>
+
+                  {/* 2. Transaction ID / UTR Input */}
+                  <div>
+                    <label className="block text-xs font-semibold text-[#411C10] mb-1.5">
+                      2. UPI Transaction ID / UTR Number <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      minLength={8}
+                      maxLength={35}
+                      value={transactionId}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\s+/g, '').toUpperCase();
+                        setTransactionId(val);
+                        if (formError) setFormError('');
+                      }}
+                      placeholder="e.g. 429182739102 (12-digit UTR from GPay receipt)"
+                      className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-mono font-medium rounded-xl border border-[#D29C83]/40 bg-[#FFF9F3] text-[#411C10] placeholder:text-[#A66D54]/50 focus:outline-none focus:border-[#7C3F27] uppercase"
+                    />
+                    <p className="text-[10px] text-[#A66D54] mt-1 leading-relaxed">
+                      💡 Found on your payment receipt under <strong>"UPI transaction ID"</strong>, <strong>"Google transaction ID"</strong>, or <strong>"UTR"</strong>.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Error Banner */}
+                {formError && (
+                  <div className="p-3 rounded-xl bg-rose-50 border border-rose-300 text-xs text-rose-800 flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0 text-rose-600 mt-0.5" />
+                    <span className="font-medium leading-relaxed">{formError}</span>
+                  </div>
+                )}
+
+                {/* Anti-Malpractice Disclaimer Notice */}
+                <div className="p-3 rounded-xl bg-[#FEEDDD]/60 border border-[#D29C83]/30 text-[11px] text-[#7C3F27] flex items-start gap-2">
+                  <ShieldCheck className="w-4 h-4 text-[#7C3F27] shrink-0 mt-0.5" />
+                  <p className="leading-relaxed">
+                    <strong>Zero-Fraud Guarantee:</strong> Duplicate UTR numbers and duplicate screenshots are automatically blocked by the system. All payments are verified with our studio bank account before baking starts.
+                  </p>
+                </div>
+
+                {/* Submit Order Button */}
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    disabled={isSubmitting || isUploadingScreenshot || !paymentScreenshot || !transactionId}
+                    className="w-full inline-flex items-center justify-center gap-2 bg-[#7C3F27] text-[#FEEDDD] hover:bg-[#5E2B19] py-3.5 px-5 rounded-2xl text-sm font-semibold tracking-wide transition-all shadow-md hover:shadow-lg active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        <span>Verifying & Submitting Order...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-4 h-4 text-[#F9C8B5]" />
+                        <span>Confirm Order & Submit Payment Proof</span>
+                      </>
+                    )}
+                  </button>
                 </div>
               </form>
             )}

@@ -430,8 +430,10 @@ export function generateOrderInvoiceHtml(order) {
           <p class="info-line"><strong>${order.customerName || 'Valued Guest'}</strong></p>
           <p class="info-line">Phone: ${order.customerPhone || 'N/A'}</p>
           <p class="info-line" style="margin-top: 6px;">
-            Payment: <strong>${order.paymentMethod || 'Pay on Delivery / UPI'}</strong>
+            Payment: <strong>${order.paymentMethod || 'Google Pay / UPI'}</strong>
           </p>
+          ${order.transactionId ? `<p class="info-line">UPI Ref / UTR: <strong style="font-family: monospace; letter-spacing: 0.5px;">${order.transactionId}</strong></p>` : ''}
+          ${order.paymentStatus ? `<p class="info-line">Payment Status: <strong style="color: ${order.paymentStatus === 'verified' ? '#2E7D32' : order.paymentStatus === 'rejected' ? '#C62828' : '#B78103'};">${order.paymentStatus.replace(/_/g, ' ').toUpperCase()}</strong></p>` : ''}
         </div>
 
         <div>

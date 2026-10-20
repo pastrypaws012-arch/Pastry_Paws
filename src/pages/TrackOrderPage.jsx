@@ -20,6 +20,10 @@ import {
   Sparkles,
   Download,
   AlertTriangle,
+  Upload,
+  Eye,
+  QrCode,
+  Maximize2,
 } from 'lucide-react';
 import { brandConfig } from '../data/brand';
 import { API_BASE_URL } from '../utils/api';
@@ -98,6 +102,17 @@ export function TrackOrderPage() {
   const [cancelModalError, setCancelModalError] = useState('');
   const [cancelToast, setCancelToast] = useState('');
 
+  // Payment Proof Re-upload & Receipt Inspection state
+  const [reuploadingOrder, setReuploadingOrder] = useState(null);
+  const [newScreenshot, setNewScreenshot] = useState('');
+  const [newScreenshotPublicId, setNewScreenshotPublicId] = useState('');
+  const [newTransactionId, setNewTransactionId] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const [reuploadError, setReuploadError] = useState('');
+  const [reuploadLoading, setReuploadLoading] = useState(false);
+  const [previewReceiptUrl, setPreviewReceiptUrl] = useState(null);
+  const [copiedUpiInTracker, setCopiedUpiInTracker] = useState(false);
+
   // Handle Customer Cancellation Request (Pending only, requires reason)
   const handleConfirmCancel = async () => {
     if (!orderToCancel) return;
@@ -144,6 +159,115 @@ export function TrackOrderPage() {
       setCancelModalError('Failed to connect to the server. Please check your network and try again.');
     } finally {
       setCancelling(false);
+    }
+  };
+
+  const handleCopyUpiInTracker = () => {
+    const upiId = brandConfig.payment?.upiId || '9790983844@okaxis';
+    navigator.clipboard.writeText(upiId);
+    setCopiedUpiInTracker(true);
+    setTimeout(() => setCopiedUpiInTracker(false), 2500);
+  };
+
+  const handleReuploadScreenshotChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setReuploadError('Please upload an image file (PNG, JPG, JPEG, WEBP).');
+      return;
+    }
+
+    if (file.size > 12 * 1024 * 1024) {
+      setReuploadError('File size is too large (max 12MB).');
+      return;
+    }
+
+    setIsUploading(true);
+    setReuploadError('');
+
+    const uploadFormData = new FormData();
+    uploadFormData.append('image', file);
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/upload`, {
+        method: 'POST',
+        body: uploadFormData,
+      });
+      const data = await res.json();
+      if (data.success && data.imageUrl) {
+        setNewScreenshot(data.imageUrl);
+        setNewScreenshotPublicId(data.publicId || '');
+      } else {
+        setReuploadError(data.message || 'Image upload failed. Please try again.');
+      }
+    } catch {
+      const localUrl = URL.createObjectURL(file);
+      setNewScreenshot(localUrl);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleConfirmReupload = async (e) => {
+    e.preventDefault();
+    if (!reuploadingOrder) return;
+
+    if (!newScreenshot) {
+      setReuploadError('Payment screenshot is required. Please upload the screenshot of your payment.');
+      return;
+    }
+
+    const cleanTx = newTransactionId.trim().replace(/\s+/g, '').toUpperCase();
+    if (!cleanTx || cleanTx.length < 8) {
+      setReuploadError('Please enter a valid UPI Transaction ID / UTR (at least 8 characters).');
+      return;
+    }
+
+    setReuploadLoading(true);
+    setReuploadError('');
+
+    try {
+      const targetId = reuploadingOrder._id || reuploadingOrder.orderId;
+      const res = await fetch(`${API_BASE_URL}/api/orders/${targetId}/update-payment-proof`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          paymentScreenshot: newScreenshot,
+          paymentScreenshotPublicId: newScreenshotPublicId,
+          transactionId: cleanTx,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setOrders((prev) =>
+          prev.map((o) =>
+            o.orderId === reuploadingOrder.orderId || o._id === reuploadingOrder._id || o._id === targetId
+              ? {
+                  ...o,
+                  paymentScreenshot: newScreenshot,
+                  paymentScreenshotPublicId: newScreenshotPublicId,
+                  transactionId: cleanTx,
+                  paymentStatus: 'pending_verification',
+                  paymentRejectedReason: '',
+                }
+              : o
+          )
+        );
+        setCancelToast(`Payment proof for Order #${reuploadingOrder.orderId} submitted! Under bakery review.`);
+        setTimeout(() => setCancelToast(''), 5000);
+        setReuploadingOrder(null);
+        setNewScreenshot('');
+        setNewScreenshotPublicId('');
+        setNewTransactionId('');
+      } else {
+        setReuploadError(data.message || 'Failed to update payment proof.');
+      }
+    } catch {
+      setReuploadError('Network error. Please try again.');
+    } finally {
+      setReuploadLoading(false);
     }
   };
 
@@ -559,7 +683,107 @@ export function TrackOrderPage() {
                       </div>
                     </div>
 
-                      {/* Cancellation Request Pending Review Banner */}
+                    {/* GOOGLE PAY / UPI PAYMENT VERIFICATION & PROOF CARD */}
+                    <div className="mt-3.5 p-3.5 rounded-2xl bg-[#FEEDDD]/40 border border-[#D29C83]/30 text-xs space-y-2.5">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-5 h-5 rounded-lg bg-[#FEEDDD] text-[#7C3F27] flex items-center justify-center font-bold text-[11px] border border-[#D29C83]/30">
+                            ₹
+                          </span>
+                          <span className="font-bold text-[#411C10]">
+                            Google Pay / UPI Payment
+                          </span>
+                        </div>
+
+                        {/* Verification Badge */}
+                        {order.paymentStatus === 'verified' ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Payment Verified</span>
+                          </span>
+                        ) : order.paymentStatus === 'rejected' ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
+                            <XCircle className="w-3.5 h-3.5 text-rose-600" />
+                            <span>Payment Rejected</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                            <Clock className="w-3.5 h-3.5 text-amber-600" />
+                            <span>Verification Pending</span>
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Transaction ID & Status message */}
+                      {order.paymentStatus === 'verified' ? (
+                        <div className="p-2.5 bg-emerald-50/80 rounded-xl border border-emerald-200 text-emerald-900 space-y-1">
+                          <p className="font-medium text-xs">
+                            ✓ Your payment has been verified by the studio! Preparation is proceeding.
+                          </p>
+                          {order.transactionId && (
+                            <p className="text-[11px] text-emerald-700">
+                              UPI Reference / UTR: <strong className="font-mono">{order.transactionId}</strong>
+                            </p>
+                          )}
+                        </div>
+                      ) : order.paymentStatus === 'rejected' ? (
+                        <div className="p-3 bg-rose-50 rounded-xl border border-rose-300 text-rose-950 space-y-2">
+                          <div className="flex items-center gap-1.5 font-bold text-rose-800">
+                            <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                            <span>Action Needed: Payment Verification Issue</span>
+                          </div>
+                          <p className="text-xs text-[#411C10]">
+                            <span className="text-[#A66D54]">Studio notice:</span>{' '}
+                            <strong className="text-rose-900">"{order.paymentRejectedReason || 'Could not verify payment with bank statement.'}"</strong>
+                          </p>
+                          <p className="text-[11px] text-[#7C3F27]">
+                            Please re-check your payment app receipt and upload the clear payment screenshot and genuine 12-digit UTR reference number.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setReuploadingOrder(order);
+                              setNewScreenshot('');
+                              setNewScreenshotPublicId('');
+                              setNewTransactionId(order.transactionId || '');
+                              setReuploadError('');
+                            }}
+                            className="inline-flex items-center gap-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold py-2 px-3.5 rounded-xl shadow-xs transition-colors cursor-pointer"
+                          >
+                            <Upload className="w-3.5 h-3.5" />
+                            <span>Re-upload Payment Proof</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="p-2.5 bg-amber-50/80 rounded-xl border border-amber-200 text-amber-950 space-y-1">
+                          <p className="font-medium text-xs">
+                            Your UPI payment proof is under review by our studio. We will confirm your order as soon as the transaction reflects in our account.
+                          </p>
+                          {order.transactionId && (
+                            <p className="text-[11px] text-amber-800">
+                              Submitted UTR: <strong className="font-mono">{order.transactionId}</strong>
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Customer can view their uploaded screenshot */}
+                      {order.paymentScreenshot && (
+                        <div className="flex items-center justify-between pt-1 text-[11px]">
+                          <span className="text-[#A66D54]">Uploaded Receipt Proof:</span>
+                          <button
+                            type="button"
+                            onClick={() => setPreviewReceiptUrl(order.paymentScreenshot)}
+                            className="text-[#7C3F27] hover:text-[#411C10] font-semibold underline inline-flex items-center gap-1 cursor-pointer"
+                          >
+                            <Eye className="w-3 h-3" />
+                            <span>View Receipt Screenshot</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Cancellation Request Pending Review Banner */}
                       {order.cancellationStatus === 'pending' && (
                         <div className="mt-3 p-3.5 rounded-2xl bg-amber-50 border border-amber-300 text-xs space-y-1.5">
                           <div className="flex items-center gap-1.5 font-bold text-amber-900">
@@ -768,6 +992,214 @@ export function TrackOrderPage() {
                   ) : (
                     <span>Submit Cancellation Request</span>
                   )}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL: RE-UPLOAD PAYMENT PROOF */}
+      <AnimatePresence>
+        {reuploadingOrder && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-xs overflow-y-auto">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-[#FFF9F3] border border-[#D29C83]/50 rounded-3xl max-w-lg w-full p-5 sm:p-7 shadow-2xl space-y-4 my-auto"
+            >
+              <div className="flex items-center justify-between border-b border-[#D29C83]/25 pb-3">
+                <div>
+                  <h3 className="font-serif text-lg sm:text-xl text-[#411C10]">
+                    Re-upload Payment Proof
+                  </h3>
+                  <p className="text-xs text-[#7C3F27]">
+                    Order #{reuploadingOrder.orderId} • {reuploadingOrder.itemTitle} ({reuploadingOrder.price})
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReuploadingOrder(null);
+                    setReuploadError('');
+                  }}
+                  className="p-1.5 rounded-xl text-[#7C3F27] hover:bg-[#FEEDDD] transition-colors cursor-pointer"
+                >
+                  <XCircle className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* UPI Payment Instructions Card */}
+              <div className="p-3.5 bg-[#FEEDDD]/60 rounded-2xl border border-[#D29C83]/30 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs text-[#7C3F27] font-medium">Bakery Official UPI ID:</span>
+                  <button
+                    type="button"
+                    onClick={handleCopyUpiInTracker}
+                    className="inline-flex items-center gap-1 bg-[#FFF9F3] hover:bg-[#FEEDDD] px-2.5 py-1 rounded-lg border border-[#D29C83]/35 text-xs font-mono font-bold text-[#411C10] transition-colors cursor-pointer"
+                  >
+                    <span>{brandConfig.payment?.upiId || '9790983844@okaxis'}</span>
+                    {copiedUpiInTracker ? (
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5 text-[#7C3F27]" />
+                    )}
+                  </button>
+                </div>
+
+                <div className="text-[11px] text-[#A66D54] flex items-center justify-between">
+                  <span>Payee Name: <strong>{brandConfig.payment?.payeeName || 'Pastry Paws'}</strong></span>
+                  <span>Amount: <strong className="text-[#411C10] font-bold">{reuploadingOrder.price}</strong></span>
+                </div>
+              </div>
+
+              <form onSubmit={handleConfirmReupload} className="space-y-4">
+                {/* Screenshot Upload */}
+                <div>
+                  <label className="block text-xs font-bold text-[#411C10] mb-1.5">
+                    1. Upload Payment Screenshot <span className="text-rose-500">*</span>
+                  </label>
+                  <div className="relative border-2 border-dashed border-[#D29C83]/50 hover:border-[#7C3F27] rounded-2xl p-4 text-center bg-[#FFFDF9] transition-colors">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleReuploadScreenshotChange}
+                      disabled={isUploading}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                    />
+                    {isUploading ? (
+                      <div className="flex flex-col items-center justify-center py-2 text-[#7C3F27]">
+                        <RefreshCw className="w-6 h-6 animate-spin mb-1 text-[#7C3F27]" />
+                        <span className="text-xs font-semibold">Uploading and optimizing screenshot...</span>
+                      </div>
+                    ) : newScreenshot ? (
+                      <div className="flex items-center justify-center gap-3 py-1">
+                        <img
+                          src={newScreenshot}
+                          alt="New receipt preview"
+                          className="w-12 h-12 object-cover rounded-xl border border-[#D29C83]/40 shadow-xs"
+                        />
+                        <div className="text-left text-xs">
+                          <p className="font-semibold text-emerald-700 flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>Screenshot Selected</span>
+                          </p>
+                          <span className="text-[10px] text-[#A66D54]">Click or drop to replace</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-2 text-[#7C3F27]">
+                        <Upload className="w-6 h-6 mb-1 text-[#7C3F27]/70" />
+                        <span className="text-xs font-semibold">Upload clear screenshot of payment</span>
+                        <span className="text-[10px] text-[#A66D54] mt-0.5">PNG, JPG, JPEG, WEBP up to 12MB</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 12-digit UTR Input */}
+                <div>
+                  <label className="block text-xs font-bold text-[#411C10] mb-1.5">
+                    2. UPI Transaction ID / UTR Number <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={35}
+                    value={newTransactionId}
+                    onChange={(e) => {
+                      setNewTransactionId(e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase());
+                      if (reuploadError) setReuploadError('');
+                    }}
+                    placeholder="Enter 12-digit UTR number (e.g. 429182739102)"
+                    className="w-full px-4 py-3 rounded-xl border border-[#D29C83]/40 bg-white font-mono text-xs sm:text-sm font-bold text-[#411C10] tracking-wider placeholder:text-[#A66D54]/50 focus:outline-none focus:border-[#7C3F27] focus:ring-1 focus:ring-[#7C3F27]"
+                  />
+                  <span className="text-[10px] text-[#A66D54] mt-1 block">
+                    Found in Google Pay / PhonePe / Paytm receipt as "UPI Ref No" or "UTR".
+                  </span>
+                </div>
+
+                {reuploadError && (
+                  <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium">
+                    ⚠️ {reuploadError}
+                  </div>
+                )}
+
+                <div className="flex items-center justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    disabled={reuploadLoading}
+                    onClick={() => {
+                      setReuploadingOrder(null);
+                      setReuploadError('');
+                    }}
+                    className="px-4 py-2.5 rounded-xl border border-[#D29C83]/40 text-xs font-semibold text-[#7C3F27] hover:bg-[#FEEDDD] transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={reuploadLoading || isUploading}
+                    className="px-5 py-2.5 rounded-xl bg-[#7C3F27] hover:bg-[#5E2B19] text-[#FEEDDD] text-xs font-semibold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    {reuploadLoading ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>Submitting Proof...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>Submit Payment Proof</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL: CUSTOMER RECEIPT LIGHTBOX */}
+      <AnimatePresence>
+        {previewReceiptUrl && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-[#FFF9F3] border border-[#D29C83]/50 rounded-3xl max-w-lg w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden"
+            >
+              <div className="px-5 py-3.5 bg-[#FEEDDD] border-b border-[#D29C83]/30 flex items-center justify-between gap-3">
+                <span className="font-serif text-sm font-semibold text-[#411C10]">
+                  Your Submitted Payment Proof
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setPreviewReceiptUrl(null)}
+                  className="p-1.5 rounded-xl text-[#7C3F27] hover:bg-[#FFF9F3] transition-colors cursor-pointer"
+                >
+                  <XCircle className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-4 overflow-y-auto flex items-center justify-center bg-[#2C1810]/5 flex-1">
+                <img
+                  src={previewReceiptUrl}
+                  alt="Payment receipt"
+                  className="max-h-[65vh] max-w-full rounded-2xl shadow-md border border-[#D29C83]/30 object-contain mx-auto"
+                />
+              </div>
+
+              <div className="px-5 py-3 bg-[#FEEDDD]/70 border-t border-[#D29C83]/30 text-right">
+                <button
+                  type="button"
+                  onClick={() => setPreviewReceiptUrl(null)}
+                  className="px-4 py-2 rounded-xl bg-[#7C3F27] text-white text-xs font-semibold hover:bg-[#5E2B19] transition-colors cursor-pointer"
+                >
+                  Close
                 </button>
               </div>
             </motion.div>

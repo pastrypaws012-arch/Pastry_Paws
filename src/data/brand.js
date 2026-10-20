@@ -21,6 +21,14 @@ export const brandConfig = {
     pickupLocation: "Home Bakery Studio • Pastry Paws"
   },
 
+  // UPI & Google Pay Configuration
+  payment: {
+    upiId: "9790983844@okaxis", // Google Pay / PhonePe / Paytm UPI ID
+    payeeName: "Pastry Paws",
+    phone: "9790983844",
+    instructions: "Pay using Google Pay, PhonePe, Paytm, or BHIM. Take a screenshot of the successful payment screen and note down the 12-digit UPI UTR / Transaction ID.",
+  },
+
   // Navigation Links (curated to keep navbar airy and elegant)
   navLinks: [
     { label: "Home", href: "/" },
