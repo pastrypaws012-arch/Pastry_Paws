@@ -28,6 +28,9 @@ export function Specialties() {
     if (t.includes('cookie') || t.includes('tea cake')) {
       return '/menu?category=Cookies';
     }
+    if (t.includes('bowl')) {
+      return '/menu?category=Chocolate%20Bowls';
+    }
     return '/menu';
   };
 
