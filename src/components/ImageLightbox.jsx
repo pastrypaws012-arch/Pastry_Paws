@@ -246,7 +246,7 @@ export function ImageLightbox({
                 </div>
 
                 <p className="text-[11px] text-[#A66D54] text-center">
-                  Freshly baked to order • Free local studio pickup or doorstep delivery
+                  Freshly baked to order • Studio pickup in Avadi or customer-arranged parcel
                 </p>
               </div>
             </div>

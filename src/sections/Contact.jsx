@@ -240,10 +240,10 @@ export function Contact() {
                     </div>
                   </div>
 
-                  {/* Delivery Location / Area */}
+                  {/* Location / Area */}
                   <div>
                     <label className="block text-xs font-semibold text-[#411C10] uppercase tracking-wider mb-1.5">
-                      Delivery Location / Area <span className="text-rose-500">*</span>
+                      Your Location / Area (Studio Pickup or Parcel Drop) <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="text"

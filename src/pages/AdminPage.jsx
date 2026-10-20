@@ -2603,7 +2603,7 @@ export function AdminPage() {
                               <span className="font-bold text-[#7C3F27] text-sm">{ord.price}</span>
                             </div>
                             <p className="text-[11px] text-[#7C3F27] leading-relaxed">
-                              Customer selected <strong>Cash on Delivery</strong>. No advance payment screenshot or UTR needed. Collect cash upon doorstep delivery or bakery pickup.
+                              Customer selected <strong>Cash on Delivery</strong>. No advance payment screenshot or UTR needed. Collect cash upon studio pickup or courier handover.
                             </p>
                           </div>
 

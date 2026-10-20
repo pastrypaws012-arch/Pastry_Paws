@@ -782,8 +782,8 @@ export function generateOrderInvoiceHtml(order) {
         </div>
 
         <div>
-          <span class="section-label">Delivery Destination & Schedule</span>
-          <p class="info-line"><strong>Address:</strong> ${order.deliveryAddress || 'Standard Studio Pickup'}</p>
+          <span class="section-label">Fulfillment Location & Schedule</span>
+          <p class="info-line"><strong>Address / Location:</strong> ${order.deliveryAddress || 'Studio Pickup'}</p>
           ${order.deliveryDate ? `<p class="info-line"><strong>Preferred Date:</strong> ${order.deliveryDate}</p>` : ''}
           ${order.deliveryTime ? `<p class="info-line"><strong>Preferred Slot:</strong> ${order.deliveryTime}</p>` : ''}
           <p class="info-line">Kitchen Status: <strong>${(order.status || 'pending').toUpperCase()}</strong></p>
@@ -836,8 +836,8 @@ export function generateOrderInvoiceHtml(order) {
             <span style="color: #2E7D32; font-weight: 700;">Complimentary (₹0.00)</span>
           </div>
           <div class="total-row">
-            <span>Studio Delivery:</span>
-            <span style="color: #2E7D32; font-weight: 700;">Included (₹0.00)</span>
+            <span>Studio Pickup / Handover:</span>
+            <span style="color: #2E7D32; font-weight: 700;">Complimentary (₹0.00)</span>
           </div>
           <div class="total-row">
             <span>GST / Taxes:</span>

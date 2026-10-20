@@ -58,7 +58,7 @@ const STATUS_CONFIG = {
   },
   out_for_delivery: {
     label: 'Out for Delivery / Ready',
-    sublabel: 'On the way to your doorstep',
+    sublabel: 'Ready for studio pickup or courier handover',
     badgeClass: 'bg-purple-100 text-purple-800 border-purple-300',
     stepIndex: 3,
     icon: Truck,
@@ -1071,7 +1071,7 @@ export function TrackOrderPage() {
                           ) : (
                             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
                               <Clock className="w-3.5 h-3.5 text-amber-700" />
-                              <span>Pay on Delivery ({order.price})</span>
+                              <span>Pay on Pickup / Handover ({order.price})</span>
                             </span>
                           )}
                         </div>
@@ -1079,12 +1079,12 @@ export function TrackOrderPage() {
                         <div className="p-2.5 bg-[#FFF9F3] rounded-xl border border-amber-200 text-[#411C10] space-y-1">
                           {order.paymentStatus === 'verified' || order.status === 'delivered' ? (
                             <p className="font-medium text-xs text-emerald-900">
-                              ✓ Cash payment of <strong>{order.price}</strong> was collected upon delivery. Thank you!
+                              ✓ Cash payment of <strong>{order.price}</strong> was collected upon pickup / handover. Thank you!
                             </p>
                           ) : (
                             <>
                               <p className="font-medium text-xs text-amber-950">
-                                💵 Please keep exact cash of <strong>{order.price}</strong> ready when your delivery arrives on {order.deliveryDate || 'the scheduled date'}.
+                                💵 Please keep exact cash of <strong>{order.price}</strong> ready upon order pickup / handover on {order.deliveryDate || 'the scheduled date'}.
                               </p>
                               <p className="text-[11px] text-[#7C3F27]">
                                 No advance transaction ID or screenshot proof required.
