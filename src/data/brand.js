@@ -23,8 +23,8 @@ export const brandConfig = {
 
   // UPI & Google Pay Configuration
   payment: {
-    upiId: "9790983844@okaxis", // Google Pay / PhonePe / Paytm UPI ID
-    payeeName: "Pastry Paws",
+    upiId: "anjiasbeautylounge@okhdfcbank", // Google Pay / PhonePe / Paytm UPI ID
+    payeeName: "Pastry Paws Bakery",
     phone: "9790983844",
     instructions: "Pay using Google Pay, PhonePe, Paytm, or BHIM. Take a screenshot of the successful payment screen and note down the 12-digit UPI UTR / Transaction ID.",
   },
