@@ -18,7 +18,10 @@ export const brandConfig = {
     phone: "+91 9790983844",
     serviceArea: "Freshly baked & hand-delivered locally. Custom orders require advance notice.",
     hours: "Mon –  sun: 24 Hr Available (Freshly baked to order)",
-    pickupLocation: "Home Bakery Studio • Pastry Paws"
+    pickupLocation: "Home Bakery Studio • Pastry Paws",
+    address: "Avadi, Chennai, Tamil Nadu 600054",
+    googleMapsUrl: "https://maps.app.goo.gl/NrA698fpTvKPwvKx6",
+    mapEmbedUrl: "https://www.google.com/maps/embed?pb=!1m14!1m8!1m3!1d31831081.587738708!2d41.0694355!3d13.1226053!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3a5289882e7eadf5%3A0xf75e95e2c79bddfa!2sPastry%20Paws!5e0!3m2!1sen!2sin!4v1792509508148!5m2!1sen!2sin",
   },
 
   // UPI & Google Pay Configuration

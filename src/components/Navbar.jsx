@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, MessageCircle } from 'lucide-react';
+import { Menu, MessageCircle, MapPin } from 'lucide-react';
 import { brandConfig } from '../data/brand';
 import { MobileMenu } from './MobileMenu';
 import { InstagramIcon } from './Icons';
@@ -105,6 +105,17 @@ export function Navbar() {
 
             {/* CTA & Mobile Toggle */}
             <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
+              <a
+                href={brandConfig.contact.googleMapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hidden md:inline-flex items-center justify-center w-9 h-9 rounded-full bg-[#FEE5D2] border border-[#D29C83]/50 text-[#7C3F27] hover:bg-[#7C3F27] hover:text-[#FEEDDD] hover:border-[#7C3F27] transition-all shadow-2xs shrink-0"
+                aria-label="Pastry Paws on Google Maps"
+                title="Find Pastry Paws on Google Maps"
+              >
+                <MapPin className="w-4 h-4" />
+              </a>
+
               <a
                 href={brandConfig.contact.instagramUrl}
                 target="_blank"

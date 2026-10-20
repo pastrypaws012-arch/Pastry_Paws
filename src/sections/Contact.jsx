@@ -115,8 +115,17 @@ export function Contact() {
                       {brandConfig.contact.serviceArea}
                     </p>
                     <p className="text-xs text-[#D29C83] mt-0.5">
-                      {brandConfig.contact.pickupLocation}
+                      {brandConfig.contact.pickupLocation} • {brandConfig.contact.address}
                     </p>
+                    <a
+                      href={brandConfig.contact.googleMapsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-xs text-[#F9C8B5] hover:text-[#FFF9F3] underline underline-offset-4 decoration-[#F9C8B5]/40 transition-colors mt-1.5 font-medium"
+                    >
+                      <span>Find on Google Maps</span>
+                      <ArrowUpRight className="w-3 h-3" />
+                    </a>
                   </div>
                 </div>
               </div>
@@ -149,6 +158,17 @@ export function Contact() {
                 >
                   <InstagramIcon className="w-4 h-4 text-[#F7B6A7]" />
                   <span>{brandConfig.contact.instagramHandle}</span>
+                </a>
+                <span className="text-[#7C3F27] hidden sm:inline">•</span>
+                <a
+                  href={brandConfig.contact.googleMapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-xs sm:text-sm text-[#FEEDDD] hover:text-[#F7B6A7] transition-colors"
+                  title="View Pastry Paws on Google Maps"
+                >
+                  <MapPin className="w-4 h-4 text-[#F7B6A7]" />
+                  <span>Google Maps</span>
                 </a>
               </div>
             </Reveal>

@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, MessageCircle, Mail, Phone, ArrowUpRight } from 'lucide-react';
+import { X, MessageCircle, Mail, Phone, ArrowUpRight, MapPin } from 'lucide-react';
 import { InstagramIcon } from './Icons';
 import { brandConfig } from '../data/brand';
 
@@ -118,9 +118,29 @@ export function MobileMenu({ isOpen, onClose }) {
               <div className="pt-2 text-xs text-[#7C3F27] space-y-1">
                 <p className="font-medium text-[#411C10]">{brandConfig.contact.hours}</p>
                 <p>{brandConfig.contact.serviceArea}</p>
+                <a
+                  href={brandConfig.contact.googleMapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-[#7C3F27] hover:text-[#411C10] font-semibold pt-0.5"
+                >
+                  <MapPin className="w-3.5 h-3.5 text-[#C85A32]" />
+                  <span>Avadi, Chennai (Google Maps)</span>
+                  <ArrowUpRight className="w-3 h-3" />
+                </a>
               </div>
 
-              <div className="flex items-center gap-4 pt-2">
+              <div className="flex items-center gap-3 pt-2">
+                <a
+                  href={brandConfig.contact.googleMapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2.5 rounded-full bg-[#FEE5D2] text-[#7C3F27] hover:bg-[#F7B6A7] transition-colors"
+                  aria-label="Google Maps Location"
+                  title="Pastry Paws on Google Maps"
+                >
+                  <MapPin className="w-4 h-4" />
+                </a>
                 <a
                   href={brandConfig.contact.instagramUrl}
                   target="_blank"
