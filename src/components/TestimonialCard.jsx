@@ -30,11 +30,7 @@ export function TestimonialCard({ testimonial, isFeatured = false }) {
 
   return (
     <div
-      className={`relative rounded-xl p-4 sm:p-5 transition-all duration-300 flex flex-col justify-between h-full border ${
-        isFeatured
-          ? 'bg-[#FEE5D2]/70 border-[#D29C83] shadow-xs'
-          : 'bg-[#FFF9F3] border-[#D29C83]/30 shadow-2xs hover:shadow-xs'
-      }`}
+      className="relative rounded-xl p-4 sm:p-5 transition-all duration-300 flex flex-col justify-between h-full border bg-[#FFF9F3] border-[#D29C83]/30 shadow-2xs hover:shadow-xs hover:border-[#D29C83]/60"
     >
       <div>
         {/* Header: Reviewer Avatar, Name, Timestamp & Google Logo */}
