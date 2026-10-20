@@ -23,7 +23,10 @@ if (fs.existsSync(indexPath)) {
     fs.writeFileSync(path.join(routeDir, 'index.html'), indexHtml);
   }
 
-  console.log('✅ Postbuild: Successfully generated 404.html and route entry points for Render SPA hosting!');
+  // 3. Prevent Jekyll from processing files on GitHub Pages
+  fs.writeFileSync(path.join(distDir, '.nojekyll'), '');
+
+  console.log('✅ Postbuild: Successfully generated 404.html, route entry points, and .nojekyll for SPA hosting!');
 } else {
   console.warn('⚠️ Postbuild warning: dist/index.html not found.');
 }

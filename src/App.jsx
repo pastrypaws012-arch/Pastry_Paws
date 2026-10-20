@@ -11,7 +11,7 @@ import { FloatingTrackButton } from './components/FloatingTrackButton';
 
 function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
       <ScrollToTop />
       <div className="min-h-screen bg-[#FEEDDD] text-[#411C10] selection:bg-[#F7B6A7] selection:text-[#411C10] font-sans antialiased overflow-x-hidden flex flex-col">
         {/* Dynamic Route Pages */}
