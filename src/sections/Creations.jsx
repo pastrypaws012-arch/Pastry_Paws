@@ -4,13 +4,12 @@ import { ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import { SectionHeading } from '../components/SectionHeading';
 import { PortfolioCard } from '../components/PortfolioCard';
 import { ImageLightbox } from '../components/ImageLightbox';
-import { categories as defaultCategories, creationsData as defaultCreations } from '../data/creations';
 import { API_BASE_URL } from '../utils/api';
 import { Reveal } from '../components/Reveal';
 
 export function Creations() {
-  const [menuItems, setMenuItems] = useState(defaultCreations);
-  const [categoryList, setCategoryList] = useState(defaultCategories);
+  const [menuItems, setMenuItems] = useState([]);
+  const [categoryList, setCategoryList] = useState(['All']);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [activeLightboxIndex, setActiveLightboxIndex] = useState(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ArrowLeft,
@@ -19,17 +19,34 @@ import {
   RefreshCw,
   X,
   Eye,
+  EyeOff,
   Check,
   AlertTriangle,
   Download,
   FileText,
+  Lock,
+  LogOut,
+  ShieldAlert,
+  KeyRound,
 } from 'lucide-react';
-import { categories as defaultCategories, creationsData as defaultCreations, specialtiesData as defaultOfferings } from '../data/creations';
 import { brandConfig } from '../data/brand';
 import { API_BASE_URL } from '../utils/api';
 import { printOrderInvoice } from '../utils/invoiceGenerator';
 
 export function AdminPage() {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Security gate: Must come through authorized portal link AND authenticate each time
+  const hasPortalLinkToken = Boolean(location.state?.fromAdminPortalLink);
+
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [adminIdInput, setAdminIdInput] = useState('');
+  const [passwordInput, setPasswordInput] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [authError, setAuthError] = useState('');
+  const [authLoading, setAuthLoading] = useState(false);
+
   const [activeTab, setActiveTab] = useState('items'); // 'items', 'offerings', 'categories', 'orders', 'database'
   const [items, setItems] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -99,10 +116,16 @@ export function AdminPage() {
   });
 
   // Admin Order Cancellation Review State
+  const [approvingOrder, setApprovingOrder] = useState(null);
   const [denyingOrder, setDenyingOrder] = useState(null);
   const [adminDenialReason, setAdminDenialReason] = useState('');
   const [denialError, setDenialError] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+
+  // In-App Deletion Confirmation States (No blocked window.confirm)
+  const [deletingOffering, setDeletingOffering] = useState(null);
+  const [deletingItem, setDeletingItem] = useState(null);
+  const [deletingCategory, setDeletingCategory] = useState(null);
 
   // Fetch initial data
   const fetchData = async () => {
@@ -119,19 +142,14 @@ export function AdminPage() {
         const data = await itemsRes.json();
         setItems(data.data || []);
       } else {
-        // Fallback to local default if server not yet populated
-        setItems(defaultCreations);
+        setItems([]);
       }
 
       if (catsRes.ok) {
         const data = await catsRes.json();
-        if (data.data && data.data.length > 0) {
-          setCategories(data.data);
-        } else {
-          setCategories(defaultCategories.filter((c) => c !== 'All').map((name, i) => ({ name, order: i + 1 })));
-        }
+        setCategories(data.data || []);
       } else {
-        setCategories(defaultCategories.filter((c) => c !== 'All').map((name, i) => ({ name, order: i + 1 })));
+        setCategories([]);
       }
 
       if (ordersRes.ok) {
@@ -141,28 +159,72 @@ export function AdminPage() {
 
       if (offeringsRes.ok) {
         const data = await offeringsRes.json();
-        if (data.data && data.data.length > 0) {
-          setOfferings(data.data);
-        } else {
-          setOfferings(defaultOfferings);
-        }
+        setOfferings(data.data || []);
       } else {
-        setOfferings(defaultOfferings);
+        setOfferings([]);
       }
     } catch {
-      // Offline fallback
-      setItems(defaultCreations);
-      setCategories(defaultCategories.filter((c) => c !== 'All').map((name, i) => ({ name, order: i + 1 })));
-      setOfferings(defaultOfferings);
+      setItems([]);
+      setCategories([]);
+      setOfferings([]);
     } finally {
       setLoading(false);
       fetchSystemStatus();
     }
   };
 
+  // Only fetch sensitive database items once authenticated
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (isAuthenticated) {
+      fetchData();
+    }
+  }, [isAuthenticated]);
+
+  // Admin Login Verification Handler
+  const handleAdminLogin = async (e) => {
+    e.preventDefault();
+    setAuthError('');
+    setAuthLoading(true);
+
+    const enteredId = adminIdInput.trim();
+    const enteredPassword = passwordInput;
+
+    const isIdValid = enteredId.toLowerCase() === 'pastrypaws';
+    const isPasswordValid = enteredPassword === 'P@stry0123';
+
+    if (isIdValid && isPasswordValid) {
+      try {
+        await fetch(`${API_BASE_URL}/api/auth/admin-login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ adminId: enteredId, password: enteredPassword }),
+        });
+      } catch {
+        // Safe continuation
+      }
+
+      setIsAuthenticated(true);
+      setAuthLoading(false);
+      showToast('Welcome back, Admin! Console unlocked.', 'success');
+    } else {
+      setAuthLoading(false);
+      if (!isIdValid && !isPasswordValid) {
+        setAuthError('Invalid Admin ID and Password. Access Denied.');
+      } else if (!isIdValid) {
+        setAuthError('Invalid Admin ID. Access Denied.');
+      } else {
+        setAuthError('Incorrect Password. Access Denied.');
+      }
+    }
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setAdminIdInput('');
+    setPasswordInput('');
+    setAuthError('');
+    navigate('/', { replace: true });
+  };
 
   // Handle Image Upload via Multer / Image endpoint
   const handleImageFileChange = async (e) => {
@@ -261,22 +323,28 @@ export function AdminPage() {
     }
   };
 
-  // Delete Item
-  const handleDeleteItem = async (item) => {
-    if (!window.confirm(`Are you sure you want to delete "${item.title}"?`)) return;
-
+  // Delete Item Handler (via In-App Confirmation Modal)
+  const handleConfirmDeleteItem = async () => {
+    if (!deletingItem) return;
+    const targetId = deletingItem._id || deletingItem.id;
+    setActionLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/items/${item._id || item.id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE_URL}/api/items/${targetId}`, { method: 'DELETE' });
       const data = await res.json();
       if (data.success) {
         showToast('Item deleted successfully!');
+        setItems((prev) => prev.filter((i) => i.id !== targetId && i._id !== targetId));
+        setDeletingItem(null);
         fetchData();
       } else {
         showToast(data.message || 'Error deleting item', 'error');
       }
     } catch {
-      setItems((prev) => prev.filter((i) => i.id !== item.id && i._id !== item._id));
+      setItems((prev) => prev.filter((i) => i.id !== targetId && i._id !== targetId));
+      setDeletingItem(null);
       showToast('Item removed from local state', 'success');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -309,19 +377,28 @@ export function AdminPage() {
     }
   };
 
-  // Delete Category
-  const handleDeleteCategory = async (cat) => {
-    if (!window.confirm(`Delete category "${cat.name}"?`)) return;
+  // Delete Category Handler (via In-App Confirmation Modal)
+  const handleConfirmDeleteCategory = async () => {
+    if (!deletingCategory) return;
+    const targetId = deletingCategory._id;
+    setActionLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/categories/${cat._id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE_URL}/api/categories/${targetId}`, { method: 'DELETE' });
       const data = await res.json();
       if (data.success) {
         showToast('Category deleted!');
+        setCategories((prev) => prev.filter((c) => c._id !== targetId));
+        setDeletingCategory(null);
         fetchData();
+      } else {
+        showToast(data.message || 'Error deleting category', 'error');
       }
     } catch {
-      setCategories((prev) => prev.filter((c) => c.name !== cat.name));
+      setCategories((prev) => prev.filter((c) => c._id !== targetId));
+      setDeletingCategory(null);
       showToast('Category removed from local state');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -424,28 +501,47 @@ export function AdminPage() {
     }
   };
 
-  const handleDeleteOffering = async (offering) => {
-    const targetId = offering._id || offering.id;
+  // Delete Offering Handler (via In-App Confirmation Modal)
+  const handleConfirmDeleteOffering = async () => {
+    if (!deletingOffering) return;
+    const targetId = deletingOffering._id || deletingOffering.id;
     if (!targetId) return;
 
-    if (!window.confirm(`Delete offering "${offering.title}"?`)) return;
-
+    setActionLoading(true);
     try {
       const res = await fetch(`${API_BASE_URL}/api/offerings/${encodeURIComponent(targetId)}`, {
         method: 'DELETE',
       });
       const data = await res.json();
       if (data.success) {
-        showToast('Offering deleted successfully!');
-        setOfferings((prev) => prev.filter((o) => (o._id || o.id) !== targetId));
+        showToast(`Offering "${deletingOffering.title}" deleted successfully!`);
+        setOfferings((prev) =>
+          prev.filter((o) => {
+            if (targetId && (o._id === targetId || o.id === targetId)) return false;
+            if (deletingOffering._id && o._id === deletingOffering._id) return false;
+            if (deletingOffering.id && o.id === deletingOffering.id) return false;
+            return true;
+          })
+        );
+        setDeletingOffering(null);
         fetchData();
       } else {
         showToast(data.message || 'Error deleting offering', 'error');
       }
     } catch (err) {
       console.error('Delete offering error:', err);
-      setOfferings((prev) => prev.filter((o) => (o._id || o.id) !== targetId));
+      setOfferings((prev) =>
+        prev.filter((o) => {
+          if (targetId && (o._id === targetId || o.id === targetId)) return false;
+          if (deletingOffering._id && o._id === deletingOffering._id) return false;
+          if (deletingOffering.id && o.id === deletingOffering.id) return false;
+          return true;
+        })
+      );
+      setDeletingOffering(null);
       showToast('Offering removed from list', 'success');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -473,10 +569,8 @@ export function AdminPage() {
   };
 
   // Admin Approve Customer Cancellation
-  const handleApproveCancellation = async (order) => {
-    if (!window.confirm(`Approve cancellation for Order #${order.orderId}? The order will be permanently marked as Cancelled.`)) {
-      return;
-    }
+  const handleConfirmApproveCancellation = async (order) => {
+    if (!order) return;
     setActionLoading(true);
     try {
       const targetId = order._id || order.orderId;
@@ -489,15 +583,18 @@ export function AdminPage() {
         showToast(`Order #${order.orderId} cancellation approved.`);
         setOrders((prev) =>
           prev.map((o) =>
-            o.orderId === order.orderId || o._id === order._id
+            o.orderId === order.orderId || o._id === order._id || o._id === targetId
               ? { ...o, status: 'cancelled', cancellationStatus: 'approved' }
               : o
           )
         );
+        setApprovingOrder(null);
+        fetchData(); // Refresh everything from database
       } else {
         showToast(data.message || 'Error approving cancellation', 'error');
       }
-    } catch {
+    } catch (err) {
+      console.error('Approve cancellation error:', err);
       showToast('Network error while approving cancellation', 'error');
     } finally {
       setActionLoading(false);
@@ -528,10 +625,10 @@ export function AdminPage() {
           prev.map((o) =>
             o.orderId === denyingOrder.orderId || o._id === denyingOrder._id
               ? {
-                  ...o,
-                  cancellationStatus: 'denied',
-                  cancellationDeniedReason: adminDenialReason.trim(),
-                }
+                ...o,
+                cancellationStatus: 'denied',
+                cancellationDeniedReason: adminDenialReason.trim(),
+              }
               : o
           )
         );
@@ -558,6 +655,186 @@ export function AdminPage() {
     return matchCat && matchQuery;
   });
 
+  // Security Guard 1: Direct URL access to /admin without clicking the  == is blocked
+  if (!hasPortalLinkToken && !isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-[#FDEADA] flex items-center justify-center p-4">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="max-w-md w-full bg-[#FFF9F3] border border-[#D29C83]/40 rounded-3xl p-6 sm:p-8 shadow-xl text-center space-y-5"
+        >
+          <div className="w-16 h-16 rounded-2xl bg-rose-100 text-rose-700 mx-auto flex items-center justify-center shadow-xs">
+            <ShieldAlert className="w-8 h-8" />
+          </div>
+
+          <div>
+            <span className="text-[10px] uppercase tracking-widest font-bold text-rose-700 bg-rose-100/80 px-2.5 py-1 rounded-full border border-rose-200">
+              Access Restricted
+            </span>
+            <h1 className="font-serif text-2xl text-[#411C10] mt-3">
+              403 • Access Denied
+            </h1>
+            <p className="text-xs text-[#7C3F27] mt-2 leading-relaxed">
+              Direct access to this resource is restricted. You do not have permission to view this page directly.
+            </p>
+          </div>
+
+          <div className="pt-2 flex flex-col gap-2">
+            <Link
+              to="/"
+              className="w-full inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-[#7C3F27] text-[#FEEDDD] hover:bg-[#5E2B19] text-xs font-semibold tracking-wide transition-all shadow-xs cursor-pointer"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Return to Home</span>
+            </Link>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // Security Guard 2: Prompt for Admin ID (Pastrypaws) and Password (P@stry0123) every single time
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-[#FDEADA] flex items-center justify-center p-4">
+        {/* Toast Notification */}
+        <AnimatePresence>
+          {toast && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className={`fixed top-4 right-4 z-50 flex items-center gap-2.5 px-4 py-3 rounded-2xl shadow-lg border text-xs sm:text-sm font-medium ${toast.type === 'error'
+                ? 'bg-rose-50 text-rose-800 border-rose-200'
+                : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                }`}
+            >
+              {toast.type === 'error' ? (
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+              ) : (
+                <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+              )}
+              <span>{toast.message}</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-md w-full bg-[#FFF9F3] border border-[#D29C83]/40 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6"
+        >
+          {/* Header */}
+          <div className="text-center space-y-2">
+            <div className="w-14 h-14 rounded-2xl bg-[#FEEDDD] text-[#7C3F27] border border-[#D29C83]/40 mx-auto flex items-center justify-center shadow-xs">
+              <Lock className="w-7 h-7" />
+            </div>
+            <span className="text-[10px] uppercase tracking-widest font-bold text-[#A66D54] block">
+              Authorized Personnel Only
+            </span>
+            <h1 className="font-serif text-2xl sm:text-3xl text-[#411C10]">
+              Admin Authentication
+            </h1>
+            <p className="text-xs text-[#7C3F27] leading-relaxed">
+              Please enter your administrator ID and password to unlock the console.
+            </p>
+          </div>
+
+          {/* Form */}
+          <form onSubmit={handleAdminLogin} className="space-y-4">
+            {authError && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 flex items-center gap-2"
+              >
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                <span>{authError}</span>
+              </motion.div>
+            )}
+
+            <div>
+              <label className="block text-xs font-semibold text-[#411C10] mb-1.5">
+                Admin ID <span className="text-rose-500">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  required
+                  autoFocus
+                  value={adminIdInput}
+                  onChange={(e) => {
+                    setAdminIdInput(e.target.value);
+                    if (authError) setAuthError('');
+                  }}
+                  placeholder="Enter Admin ID"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#D29C83]/40 bg-[#FFF9F3] text-xs text-[#411C10] placeholder:text-[#A66D54]/50 focus:outline-none focus:border-[#7C3F27] focus:ring-1 focus:ring-[#7C3F27]"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-[#411C10] mb-1.5">
+                Password <span className="text-rose-500">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  value={passwordInput}
+                  onChange={(e) => {
+                    setPasswordInput(e.target.value);
+                    if (authError) setAuthError('');
+                  }}
+                  placeholder="Enter Admin Password"
+                  className="w-full px-3.5 py-2.5 pr-10 rounded-xl border border-[#D29C83]/40 bg-[#FFF9F3] text-xs text-[#411C10] placeholder:text-[#A66D54]/50 focus:outline-none focus:border-[#7C3F27] focus:ring-1 focus:ring-[#7C3F27]"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#A66D54] hover:text-[#411C10] p-1 cursor-pointer"
+                  title={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={authLoading}
+              className="w-full mt-2 inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-[#7C3F27] text-[#FEEDDD] hover:bg-[#5E2B19] text-xs sm:text-sm font-semibold tracking-wide transition-all shadow-xs hover:shadow active:scale-[0.99] cursor-pointer disabled:opacity-50"
+            >
+              {authLoading ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>Verifying credentials...</span>
+                </>
+              ) : (
+                <>
+                  <KeyRound className="w-4 h-4" />
+                  <span>Verify &amp; Enter Admin Console</span>
+                </>
+              )}
+            </button>
+          </form>
+
+          {/* Footer Navigation */}
+          <div className="text-center pt-2 border-t border-[#D29C83]/20">
+            <Link
+              to="/"
+              className="text-xs text-[#A66D54] hover:text-[#411C10] inline-flex items-center gap-1 transition-colors"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Back to Storefront</span>
+            </Link>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#FEEDDD]/30 text-[#411C10] font-sans antialiased pb-20">
       {/* Toast Notification */}
@@ -568,8 +845,8 @@ export function AdminPage() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             className={`fixed top-4 right-4 z-50 flex items-center gap-2.5 px-4 py-3 rounded-2xl shadow-lg border text-xs sm:text-sm font-medium ${toast.type === 'error'
-                ? 'bg-rose-50 text-rose-800 border-rose-200'
-                : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+              ? 'bg-rose-50 text-rose-800 border-rose-200'
+              : 'bg-emerald-50 text-emerald-800 border-emerald-200'
               }`}
           >
             {toast.type === 'error' ? (
@@ -609,7 +886,7 @@ export function AdminPage() {
             <button
               onClick={fetchData}
               title="Refresh Data"
-              className="p-2 rounded-xl border border-[#D29C83]/30 text-[#7C3F27] hover:bg-[#FEEDDD] transition-colors"
+              className="p-2 rounded-xl border border-[#D29C83]/30 text-[#7C3F27] hover:bg-[#FEEDDD] transition-colors cursor-pointer"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
@@ -620,6 +897,16 @@ export function AdminPage() {
               <span>View Website</span>
               <ExternalLink className="w-3 h-3" />
             </Link>
+            <button
+              type="button"
+              onClick={handleLogout}
+              title="Lock Admin Console & Exit"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold transition-colors cursor-pointer"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Logout &amp; Lock</span>
+              <span className="sm:hidden">Exit</span>
+            </button>
           </div>
         </div>
       </header>
@@ -629,11 +916,10 @@ export function AdminPage() {
         <div className="flex items-center gap-2 border-b border-[#D29C83]/30 pb-3 overflow-x-auto no-scrollbar">
           <button
             onClick={() => setActiveTab('items')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all shrink-0 whitespace-nowrap cursor-pointer ${
-              activeTab === 'items'
-                ? 'bg-[#7C3F27] text-[#FFF9F3] shadow-xs'
-                : 'bg-[#FFF9F3] text-[#7C3F27] hover:bg-[#FEEDDD] border border-[#D29C83]/30'
-            }`}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all shrink-0 whitespace-nowrap cursor-pointer ${activeTab === 'items'
+              ? 'bg-[#7C3F27] text-[#FFF9F3] shadow-xs'
+              : 'bg-[#FFF9F3] text-[#7C3F27] hover:bg-[#FEEDDD] border border-[#D29C83]/30'
+              }`}
           >
             <ShoppingBag className="w-4 h-4" />
             <span>Menu Items ({items.length})</span>
@@ -641,11 +927,10 @@ export function AdminPage() {
 
           <button
             onClick={() => setActiveTab('categories')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all shrink-0 whitespace-nowrap cursor-pointer ${
-              activeTab === 'categories'
-                ? 'bg-[#7C3F27] text-[#FFF9F3] shadow-xs'
-                : 'bg-[#FFF9F3] text-[#7C3F27] hover:bg-[#FEEDDD] border border-[#D29C83]/30'
-            }`}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all shrink-0 whitespace-nowrap cursor-pointer ${activeTab === 'categories'
+              ? 'bg-[#7C3F27] text-[#FFF9F3] shadow-xs'
+              : 'bg-[#FFF9F3] text-[#7C3F27] hover:bg-[#FEEDDD] border border-[#D29C83]/30'
+              }`}
           >
             <Layers className="w-4 h-4" />
             <span>Categories ({categories.length})</span>
@@ -653,11 +938,10 @@ export function AdminPage() {
 
           <button
             onClick={() => setActiveTab('offerings')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all shrink-0 whitespace-nowrap cursor-pointer ${
-              activeTab === 'offerings'
-                ? 'bg-[#7C3F27] text-[#FFF9F3] shadow-xs'
-                : 'bg-[#FFF9F3] text-[#7C3F27] hover:bg-[#FEEDDD] border border-[#D29C83]/30'
-            }`}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all shrink-0 whitespace-nowrap cursor-pointer ${activeTab === 'offerings'
+              ? 'bg-[#7C3F27] text-[#FFF9F3] shadow-xs'
+              : 'bg-[#FFF9F3] text-[#7C3F27] hover:bg-[#FEEDDD] border border-[#D29C83]/30'
+              }`}
           >
             <Sparkles className="w-4 h-4" />
             <span>Our Offerings ({offerings.length})</span>
@@ -665,11 +949,10 @@ export function AdminPage() {
 
           <button
             onClick={() => setActiveTab('orders')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all shrink-0 whitespace-nowrap cursor-pointer ${
-              activeTab === 'orders'
-                ? 'bg-[#7C3F27] text-[#FFF9F3] shadow-xs'
-                : 'bg-[#FFF9F3] text-[#7C3F27] hover:bg-[#FEEDDD] border border-[#D29C83]/30'
-            }`}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all shrink-0 whitespace-nowrap cursor-pointer ${activeTab === 'orders'
+              ? 'bg-[#7C3F27] text-[#FFF9F3] shadow-xs'
+              : 'bg-[#FFF9F3] text-[#7C3F27] hover:bg-[#FEEDDD] border border-[#D29C83]/30'
+              }`}
           >
             <ShoppingBag className="w-4 h-4" />
             <span>Orders ({orders.length})</span>
@@ -677,11 +960,10 @@ export function AdminPage() {
 
           <button
             onClick={() => setActiveTab('database')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all shrink-0 whitespace-nowrap cursor-pointer ml-auto ${
-              activeTab === 'database'
-                ? 'bg-[#7C3F27] text-[#FFF9F3] shadow-xs'
-                : 'bg-[#FFF9F3] text-[#7C3F27] hover:bg-[#FEEDDD] border border-[#D29C83]/30'
-            }`}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all shrink-0 whitespace-nowrap cursor-pointer ml-auto ${activeTab === 'database'
+              ? 'bg-[#7C3F27] text-[#FFF9F3] shadow-xs'
+              : 'bg-[#FFF9F3] text-[#7C3F27] hover:bg-[#FEEDDD] border border-[#D29C83]/30'
+              }`}
           >
             <Database className="w-4 h-4" />
             <span>Database Status</span>
@@ -859,7 +1141,7 @@ export function AdminPage() {
                           <span>Edit</span>
                         </button>
                         <button
-                          onClick={() => handleDeleteItem(item)}
+                          onClick={() => setDeletingItem(item)}
                           className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer border border-transparent hover:border-rose-200"
                           title="Delete creation"
                         >
@@ -915,7 +1197,7 @@ export function AdminPage() {
                   </div>
                   {cat._id && (
                     <button
-                      onClick={() => handleDeleteCategory(cat)}
+                      onClick={() => setDeletingCategory(cat)}
                       className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                       title="Delete category"
                     >
@@ -1016,7 +1298,7 @@ export function AdminPage() {
                         <span>Edit</span>
                       </button>
                       <button
-                        onClick={() => handleDeleteOffering(off)}
+                        onClick={() => setDeletingOffering(off)}
                         className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
                         title="Delete offering"
                       >
@@ -1111,7 +1393,7 @@ export function AdminPage() {
                           <div className="flex items-center gap-2 pt-1">
                             <button
                               type="button"
-                              onClick={() => handleApproveCancellation(ord)}
+                              onClick={() => setApprovingOrder(ord)}
                               className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold py-1.5 px-3 rounded-lg shadow-2xs transition-colors flex items-center justify-center gap-1 cursor-pointer"
                             >
                               <Check className="w-3.5 h-3.5" />
@@ -1156,15 +1438,14 @@ export function AdminPage() {
                         <select
                           value={ord.status || 'pending'}
                           onChange={(e) => handleUpdateOrderStatus(ord._id, e.target.value)}
-                          className={`text-xs font-semibold px-3 py-1.5 rounded-xl border focus:outline-none cursor-pointer ${
-                            ord.status === 'delivered'
-                              ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                              : ord.status === 'baking'
+                          className={`text-xs font-semibold px-3 py-1.5 rounded-xl border focus:outline-none cursor-pointer ${ord.status === 'delivered'
+                            ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                            : ord.status === 'baking'
                               ? 'bg-amber-50 text-amber-800 border-amber-300'
                               : ord.status === 'cancelled'
-                              ? 'bg-rose-50 text-rose-800 border-rose-300'
-                              : 'bg-[#FEEDDD] text-[#7C3F27] border-[#D29C83]/40'
-                          }`}
+                                ? 'bg-rose-50 text-rose-800 border-rose-300'
+                                : 'bg-[#FEEDDD] text-[#7C3F27] border-[#D29C83]/40'
+                            }`}
                         >
                           <option value="pending">Pending</option>
                           <option value="confirmed">Confirmed</option>
@@ -1262,11 +1543,10 @@ export function AdminPage() {
                     </p>
                   </div>
                 </div>
-                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold shrink-0 ${
-                  systemStatus?.database?.connected !== false
-                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                    : 'bg-rose-100 text-rose-800 border border-rose-300'
-                }`}>
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold shrink-0 ${systemStatus?.database?.connected !== false
+                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                  : 'bg-rose-100 text-rose-800 border border-rose-300'
+                  }`}>
                   <span className={`w-2 h-2 rounded-full ${systemStatus?.database?.connected !== false ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
                   <span>{systemStatus?.database?.status || 'Connected'}</span>
                 </span>
@@ -1771,6 +2051,72 @@ export function AdminPage() {
         )}
       </AnimatePresence>
 
+      {/* Admin Approve Cancellation Modal */}
+      <AnimatePresence>
+        {approvingOrder && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-[#FFF9F3] border border-[#D29C83]/40 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center">
+                <CheckCircle className="w-6 h-6 text-emerald-700" />
+              </div>
+
+              <div>
+                <h3 className="font-serif text-xl text-[#411C10]">
+                  Approve Cancellation #{approvingOrder.orderId}?
+                </h3>
+                <p className="text-xs text-[#7C3F27] mt-1 leading-relaxed">
+                  Customer <strong className="text-[#411C10]">{approvingOrder.customerName}</strong> has requested to cancel their order for{' '}
+                  <strong className="text-[#411C10]">{approvingOrder.itemTitle}</strong> ({approvingOrder.selectedSize}).
+                </p>
+                {approvingOrder.cancellationReason && (
+                  <div className="mt-2.5 p-2.5 rounded-xl bg-[#FEEDDD]/60 border border-[#D29C83]/30 text-xs">
+                    <span className="text-[10px] uppercase font-bold text-[#A66D54] block">Reason Given:</span>
+                    <p className="text-[#411C10] italic mt-0.5">"{approvingOrder.cancellationReason}"</p>
+                  </div>
+                )}
+                <p className="text-[11px] text-[#A66D54] mt-2">
+                  Once approved, this order will be permanently set to <strong className="text-rose-700">Cancelled</strong> and the customer's tracker will show the approved cancellation.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  disabled={actionLoading}
+                  onClick={() => setApprovingOrder(null)}
+                  className="px-4 py-2.5 rounded-xl border border-[#D29C83]/40 text-xs font-semibold text-[#7C3F27] hover:bg-[#FEEDDD] transition-colors cursor-pointer"
+                >
+                  Keep Order Active
+                </button>
+                <button
+                  type="button"
+                  disabled={actionLoading}
+                  onClick={() => handleConfirmApproveCancellation(approvingOrder)}
+                  className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {actionLoading ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Approving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Confirm & Approve Cancellation</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Admin Deny Cancellation Modal */}
       <AnimatePresence>
         {denyingOrder && (
@@ -1840,6 +2186,211 @@ export function AdminPage() {
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Offering Confirmation Modal */}
+      <AnimatePresence>
+        {deletingOffering && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-[#FFF9F3] border border-[#D29C83]/40 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-800 flex items-center justify-center">
+                <Trash2 className="w-6 h-6 text-rose-600" />
+              </div>
+
+              <div>
+                <h3 className="font-serif text-xl text-[#411C10]">
+                  Delete Offering "{deletingOffering.title}"?
+                </h3>
+                <p className="text-xs text-[#7C3F27] mt-1 leading-relaxed">
+                  Are you sure you want to remove this featured specialty card from the homepage "OUR OFFERINGS" section?
+                </p>
+                <div className="mt-3 p-3 rounded-xl bg-[#FEEDDD]/60 border border-[#D29C83]/30 flex items-center gap-3">
+                  <img
+                    src={deletingOffering.image}
+                    alt={deletingOffering.title}
+                    className="w-12 h-12 rounded-lg object-cover border border-[#D29C83]/30 shrink-0"
+                    onError={(e) => {
+                      e.currentTarget.src =
+                        'https://res.cloudinary.com/ku59ko3p/image/upload/v1792430625/PastryPaws/hero-cake.jpg';
+                    }}
+                  />
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold text-[#411C10] truncate">{deletingOffering.title}</div>
+                    <div className="text-[11px] text-[#A66D54] truncate">{deletingOffering.subtitle || deletingOffering.accent || 'Specialty Offering'}</div>
+                    {deletingOffering.price && (
+                      <div className="text-[11px] font-semibold text-[#7C3F27]">{deletingOffering.price}</div>
+                    )}
+                  </div>
+                </div>
+                <p className="text-[11px] text-[#A66D54] mt-2">
+                  This action will permanently remove this offering from MongoDB Atlas.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  disabled={actionLoading}
+                  onClick={() => setDeletingOffering(null)}
+                  className="px-4 py-2.5 rounded-xl border border-[#D29C83]/40 text-xs font-semibold text-[#7C3F27] hover:bg-[#FEEDDD] transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={actionLoading}
+                  onClick={handleConfirmDeleteOffering}
+                  className="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {actionLoading ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Deleting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Yes, Delete Offering</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Item Confirmation Modal */}
+      <AnimatePresence>
+        {deletingItem && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-[#FFF9F3] border border-[#D29C83]/40 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-800 flex items-center justify-center">
+                <Trash2 className="w-6 h-6 text-rose-600" />
+              </div>
+
+              <div>
+                <h3 className="font-serif text-xl text-[#411C10]">
+                  Delete "{deletingItem.title}"?
+                </h3>
+                <p className="text-xs text-[#7C3F27] mt-1 leading-relaxed">
+                  Are you sure you want to delete this menu creation? Customers will no longer be able to browse or order it.
+                </p>
+                <div className="mt-3 p-3 rounded-xl bg-[#FEEDDD]/60 border border-[#D29C83]/30 flex items-center gap-3">
+                  <img
+                    src={deletingItem.image}
+                    alt={deletingItem.title}
+                    className="w-12 h-12 rounded-lg object-cover border border-[#D29C83]/30 shrink-0"
+                    onError={(e) => {
+                      e.currentTarget.src =
+                        'https://res.cloudinary.com/ku59ko3p/image/upload/v1792430625/PastryPaws/hero-cake.jpg';
+                    }}
+                  />
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold text-[#411C10] truncate">{deletingItem.title}</div>
+                    <div className="text-[11px] text-[#A66D54] truncate">{deletingItem.category}</div>
+                    <div className="text-[11px] font-semibold text-[#7C3F27]">{deletingItem.priceDisplay || `₹${deletingItem.startingPrice || 0}`}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  disabled={actionLoading}
+                  onClick={() => setDeletingItem(null)}
+                  className="px-4 py-2.5 rounded-xl border border-[#D29C83]/40 text-xs font-semibold text-[#7C3F27] hover:bg-[#FEEDDD] transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={actionLoading}
+                  onClick={handleConfirmDeleteItem}
+                  className="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {actionLoading ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Deleting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Yes, Delete Item</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Category Confirmation Modal */}
+      <AnimatePresence>
+        {deletingCategory && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-[#FFF9F3] border border-[#D29C83]/40 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-800 flex items-center justify-center">
+                <Trash2 className="w-6 h-6 text-rose-600" />
+              </div>
+
+              <div>
+                <h3 className="font-serif text-xl text-[#411C10]">
+                  Delete Category "{deletingCategory.name}"?
+                </h3>
+                <p className="text-xs text-[#7C3F27] mt-1 leading-relaxed">
+                  Are you sure you want to delete this category? Items under this category may become uncategorized.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  disabled={actionLoading}
+                  onClick={() => setDeletingCategory(null)}
+                  className="px-4 py-2.5 rounded-xl border border-[#D29C83]/40 text-xs font-semibold text-[#7C3F27] hover:bg-[#FEEDDD] transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={actionLoading}
+                  onClick={handleConfirmDeleteCategory}
+                  className="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {actionLoading ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Deleting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Yes, Delete Category</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

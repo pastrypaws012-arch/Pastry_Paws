@@ -12,7 +12,6 @@ import {
   Heart,
   MessageCircle,
 } from 'lucide-react';
-import { creationsData, categories } from '../data/creations';
 import { brandConfig } from '../data/brand';
 import { MenuCard } from '../components/MenuCard';
 import { ImageLightbox } from '../components/ImageLightbox';
@@ -24,8 +23,8 @@ export function MenuPage() {
   const [searchParams] = useSearchParams();
   const initialCategory = searchParams.get('category') || 'All';
 
-  const [menuItems, setMenuItems] = useState(creationsData);
-  const [categoryList, setCategoryList] = useState(categories);
+  const [menuItems, setMenuItems] = useState([]);
+  const [categoryList, setCategoryList] = useState(['All']);
   const [selectedCategory, setSelectedCategory] = useState(initialCategory);
 
   // Sync category when URL search parameter changes

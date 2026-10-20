@@ -136,6 +136,7 @@ export function Footer() {
           <div className="flex items-center gap-4">
             <Link
               to="/admin"
+              state={{ fromAdminPortalLink: true }}
               className="text-[11px] text-[#D29C83] hover:text-[#FEEDDD] underline underline-offset-4 transition-colors"
             >
               Admin Portal

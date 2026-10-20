@@ -14,10 +14,10 @@ export const brandConfig = {
     whatsappDefaultMessage: "Hello Pastry Paws! I'd love to order sweet treats.",
     instagramHandle: "@pastry_paws_06",
     instagramUrl: "https://www.instagram.com/pastry_paws_06/",
-    email: "hello@pastrypaws.com",
+    email: "pastry.paws012@gmail.com",
     phone: "+91 9790983844",
     serviceArea: "Freshly baked & hand-delivered locally. Custom orders require advance notice.",
-    hours: "Mon – Sat: 9:00 AM – 7:00 PM (Freshly baked to order)",
+    hours: "Mon – Sat: 24 Hr Available (Freshly baked to order)",
     pickupLocation: "Home Bakery Studio • Pastry Paws"
   },
 

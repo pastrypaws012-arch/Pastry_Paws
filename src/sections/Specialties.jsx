@@ -2,13 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { SectionHeading } from '../components/SectionHeading';
-import { specialtiesData as defaultOfferings } from '../data/creations';
 import { StaggerContainer, StaggerItem } from '../components/Reveal';
-import { ArrowUpRight } from 'lucide-react';
+import { ArrowUpRight, ShoppingBag, Sparkles, Expand } from 'lucide-react';
+import { WhatsAppIcon } from '../components/Icons';
+import { brandConfig } from '../data/brand';
 import { API_BASE_URL } from '../utils/api';
 
 export function Specialties() {
-  const [offerings, setOfferings] = useState(defaultOfferings);
+  const [offerings, setOfferings] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   // Helper to map each offering directly to its menu/order page category
   const getOfferingOrderLink = (spec) => {
@@ -39,12 +41,14 @@ export function Specialties() {
         const res = await fetch(`${API_BASE_URL}/api/offerings`);
         if (res.ok) {
           const json = await res.json();
-          if (json.success && json.data && json.data.length > 0 && isMounted) {
+          if (json.success && Array.isArray(json.data) && isMounted) {
             setOfferings(json.data);
           }
         }
       } catch {
-        // Keeps graceful fallback
+        if (isMounted) setOfferings([]);
+      } finally {
+        if (isMounted) setLoading(false);
       }
     };
 
@@ -53,6 +57,11 @@ export function Specialties() {
       isMounted = false;
     };
   }, []);
+
+  // Only show offerings created in admin. If none exist in database, do not show hardcoded cards
+  if (!loading && offerings.length === 0) {
+    return null;
+  }
 
   return (
     <section
@@ -71,10 +80,21 @@ export function Specialties() {
 
         <StaggerContainer
           staggerChildren={0.08}
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5"
+          className={`grid grid-cols-1 ${
+            offerings.length === 1
+              ? 'sm:grid-cols-1 max-w-sm mx-auto'
+              : offerings.length === 2
+              ? 'sm:grid-cols-2 max-w-2xl mx-auto'
+              : offerings.length === 3
+              ? 'sm:grid-cols-2 lg:grid-cols-3 max-w-5xl mx-auto'
+              : 'sm:grid-cols-2 lg:grid-cols-4'
+          } gap-4 sm:gap-5`}
         >
           {offerings.map((spec, index) => {
             const orderLink = getOfferingOrderLink(spec);
+            const whatsappUrl = `https://wa.me/${brandConfig.contact.whatsappNumber}?text=${encodeURIComponent(
+              `Hello Pastry Paws! I am interested in your specialty offering "${spec.title}". Could you please share more details or availability?`
+            )}`;
 
             return (
               <StaggerItem key={spec.id || spec._id || index} className="h-full">
@@ -84,74 +104,103 @@ export function Specialties() {
                   aria-label={`Order ${spec.title}`}
                 >
                   <motion.div
-                    whileHover={{ y: -5 }}
-                    transition={{ duration: 0.25 }}
-                    className="relative bg-[#FFF9F3] rounded-2xl overflow-hidden border border-[#D29C83]/30 shadow-xs group-hover/card:shadow-lg group-hover/card:border-[#7C3F27]/50 flex flex-col h-full transition-all duration-300"
+                    whileHover={{ y: -4 }}
+                    transition={{ duration: 0.2 }}
+                    className="group relative bg-[#FFF9F3] rounded-2xl overflow-hidden border border-[#D29C83]/30 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between h-full"
                   >
-                    {/* Photo container with zoom & number badge */}
-                    <div className="relative h-40 sm:h-44 w-full overflow-hidden bg-[#FEE5D2]">
-                      <img
-                        src={spec.image}
-                        alt={spec.title}
-                        loading="lazy"
-                        onError={(e) => {
-                          e.currentTarget.onerror = null;
-                          e.currentTarget.src =
-                            'https://res.cloudinary.com/ku59ko3p/image/upload/v1792430625/PastryPaws/hero-cake.jpg';
-                        }}
-                        className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover/card:scale-106"
-                      />
-                      <div className="absolute top-2.5 left-2.5 bg-[#FEEDDD]/95 backdrop-blur-xs px-2.5 py-0.5 rounded-md text-[11px] font-serif font-semibold text-[#7C3F27] border border-[#D29C83]/40 shadow-2xs">
-                        {spec.number || `0${index + 1}`}
+                    <div>
+                      {/* Photo Container: Matches exact MenuCard fancy aesthetic while maintaining offering card size */}
+                      <div className="relative h-40 sm:h-44 w-full overflow-hidden bg-[#FEE5D2]/50">
+                        <img
+                          src={spec.image}
+                          alt={spec.title}
+                          loading="lazy"
+                          onError={(e) => {
+                            e.currentTarget.onerror = null;
+                            e.currentTarget.src =
+                              'https://res.cloudinary.com/ku59ko3p/image/upload/v1792430625/PastryPaws/hero-cake.jpg';
+                          }}
+                          className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover/card:scale-106"
+                        />
+
+                        {/* Hover Overlay Hint with Glassmorphism */}
+                        <div className="absolute inset-0 bg-[#411C10]/30 opacity-0 group-hover/card:opacity-100 transition-opacity duration-200 flex items-center justify-center">
+                          <span className="bg-[#FFF9F3]/90 text-[#411C10] text-xs font-medium px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-sm backdrop-blur-xs">
+                            <Expand className="w-3.5 h-3.5" />
+                            <span>View &amp; Order</span>
+                          </span>
+                        </div>
+
+                        {/* Top Left: Badges (Number + Accent/Pill) */}
+                        <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[10px] font-serif font-bold px-2 py-0.5 rounded-full bg-[#FEEDDD]/95 text-[#7C3F27] border border-[#D29C83]/40 backdrop-blur-xs shadow-2xs">
+                            {spec.number || `0${index + 1}`}
+                          </span>
+                          {spec.accent && (
+                            <span className="text-[9px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full bg-[#7C3F27] text-[#FFF9F3] shadow-2xs">
+                              {spec.accent}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Top Right: Prominent Price Badge (like MenuCard) */}
+                        {spec.price && (
+                          <div className="absolute top-2.5 right-2.5">
+                            <span className="text-[11px] font-bold text-[#7C3F27] bg-[#FFF9F3]/95 backdrop-blur-xs px-2.5 py-1 rounded-lg border border-[#D29C83]/40 shadow-2xs whitespace-nowrap">
+                              {spec.price.toLowerCase().includes('₹') || spec.price.toLowerCase().includes('from')
+                                ? spec.price
+                                : `From ₹${spec.price}`}
+                            </span>
+                          </div>
+                        )}
                       </div>
 
-                      {/* Hover Overlay Hint */}
-                      <div className="absolute inset-0 bg-[#411C10]/20 opacity-0 group-hover/card:opacity-100 transition-opacity duration-200 flex items-center justify-center">
-                        <span className="bg-[#FFF9F3]/95 backdrop-blur-xs text-[#7C3F27] text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm flex items-center gap-1.5">
-                          <span>View &amp; Order</span>
-                          <ArrowUpRight className="w-3.5 h-3.5" />
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Card Content */}
-                    <div className="p-4 sm:p-5 flex flex-col justify-between flex-grow">
-                      <div>
+                      {/* Card Body */}
+                      <div className="p-3.5 sm:p-4">
                         {spec.subtitle && (
                           <span className="text-[10px] uppercase tracking-wider font-semibold text-[#A66D54] block mb-1">
                             {spec.subtitle}
                           </span>
                         )}
-                        <h3 className="font-serif text-lg sm:text-xl text-[#411C10] font-normal group-hover/card:text-[#7C3F27] transition-colors leading-snug">
+                        <h3 className="font-serif text-base sm:text-lg text-[#411C10] font-normal leading-snug group-hover/card:text-[#7C3F27] transition-colors line-clamp-1">
                           {spec.title}
                         </h3>
                         {spec.description && (
-                          <p className="mt-1.5 text-xs text-[#7C3F27] leading-relaxed font-normal line-clamp-3">
+                          <p className="mt-1.5 text-xs text-[#7C3F27]/90 leading-relaxed font-normal line-clamp-2">
                             {spec.description}
                           </p>
                         )}
-                      </div>
 
-                      {/* Bottom Pricing & Order Action */}
-                      <div className="mt-4 pt-3 border-t border-[#D29C83]/20 flex items-center justify-between gap-2">
-                        <div>
-                          {spec.accent && (
-                            <span className="text-[10px] font-medium text-[#7C3F27] bg-[#FEEDDD] px-2 py-0.5 rounded-full inline-block truncate max-w-[120px]">
-                              {spec.accent}
-                            </span>
-                          )}
-                          {spec.price && (
-                            <p className="text-xs font-bold text-[#411C10] mt-0.5">
-                              {spec.price}
-                            </p>
-                          )}
+                        {/* Specialty Quality Micro-Tag */}
+                        <div className="mt-2.5 flex items-center gap-1.5 text-[10px] text-[#A66D54]">
+                          <Sparkles className="w-3 h-3 text-[#E29578] shrink-0" />
+                          <span className="truncate">Freshly baked to order • 100% Eggless</span>
                         </div>
-                        <div
-                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#FEEDDD] text-[#7C3F27] group-hover/card:bg-[#7C3F27] group-hover/card:text-[#FEEDDD] text-xs font-semibold transition-all duration-200 shadow-2xs shrink-0"
+                      </div>
+                    </div>
+
+                    {/* Fancy Action Footer: Primary "Order Now" Button + Edge Circular WhatsApp (MenuCard Style) */}
+                    <div className="p-3.5 sm:p-4 pt-0">
+                      <div className="pt-2.5 border-t border-[#D29C83]/20 flex items-center gap-2">
+                        <div className="flex-1 inline-flex items-center justify-center gap-1.5 bg-[#7C3F27] text-[#FEEDDD] group-hover/card:bg-[#5E2B19] py-2 px-3 rounded-xl text-xs font-semibold tracking-wide transition-all shadow-2xs group-hover/card:shadow active:scale-[0.98]">
+                          <ShoppingBag className="w-3.5 h-3.5 text-[#F9C8B5] shrink-0" />
+                          <span>Order Now</span>
+                          <ArrowUpRight className="w-3 h-3 group-hover/card:translate-x-0.5 group-hover/card:-translate-y-0.5 transition-transform" />
+                        </div>
+
+                        <a
+                          href={whatsappUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                          }}
+                          title={`Enquire about "${spec.title}" on WhatsApp`}
+                          className="shrink-0 w-8 h-8 rounded-full bg-[#25D366]/15 hover:bg-[#25D366] text-[#128C7E] hover:text-white border border-[#25D366]/35 flex items-center justify-center transition-all duration-200 shadow-2xs hover:scale-105 active:scale-95 cursor-pointer"
+                          aria-label={`Enquire about ${spec.title} on WhatsApp`}
                         >
-                          <span>Order</span>
-                          <ArrowUpRight className="w-3.5 h-3.5 group-hover/card:translate-x-0.5 group-hover/card:-translate-y-0.5 transition-transform" />
-                        </div>
+                          <WhatsAppIcon className="w-4 h-4" />
+                        </a>
                       </div>
                     </div>
                   </motion.div>
