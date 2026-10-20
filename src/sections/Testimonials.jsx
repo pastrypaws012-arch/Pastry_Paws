@@ -209,12 +209,12 @@ export function Testimonials() {
           {/* Horizontal Smooth Scrollable Cards Container */}
           <div
             ref={scrollRef}
-            className="flex gap-4 sm:gap-5 overflow-x-auto scroll-smooth snap-x snap-mandatory py-2 px-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="flex items-stretch gap-4 sm:gap-5 overflow-x-auto scroll-smooth snap-x snap-mandatory py-4 px-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
             {reviews.map((item, index) => (
               <div
                 key={item.id || item._id || index}
-                className="w-[84vw] sm:w-[340px] md:w-[350px] lg:w-[calc(33.333%-14px)] shrink-0 snap-start flex flex-col h-full"
+                className="w-[84vw] sm:w-[340px] md:w-[350px] lg:w-[calc(33.333%-14px)] shrink-0 snap-start flex flex-col self-stretch"
               >
                 <TestimonialCard
                   testimonial={item}

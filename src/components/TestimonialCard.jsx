@@ -30,11 +30,11 @@ export function TestimonialCard({ testimonial, isFeatured = false }) {
 
   return (
     <div
-      className="relative rounded-xl p-4 sm:p-5 transition-all duration-300 flex flex-col justify-between h-full border bg-[#FFF9F3] border-[#D29C83]/30 shadow-2xs hover:shadow-xs hover:border-[#D29C83]/60"
+      className="relative rounded-2xl p-4 sm:p-5 transition-all duration-300 flex flex-col justify-between w-full h-full min-h-[250px] sm:min-h-[260px] border bg-[#FFF9F3] border-[#D29C83]/30 shadow-2xs hover:shadow-xs hover:border-[#D29C83]/60"
     >
-      <div>
+      <div className="flex-1 flex flex-col">
         {/* Header: Reviewer Avatar, Name, Timestamp & Google Logo */}
-        <div className="flex items-start justify-between gap-2.5 mb-3">
+        <div className="flex items-start justify-between gap-2.5 mb-3 shrink-0">
           <div className="flex items-center gap-2.5 min-w-0">
             {/* Avatar with fallback */}
             <div className="w-9 h-9 rounded-full overflow-hidden shrink-0 bg-[#FEE5D2] border border-[#D29C83]/40 flex items-center justify-center text-xs font-semibold text-[#7C3F27]">
@@ -78,7 +78,7 @@ export function TestimonialCard({ testimonial, isFeatured = false }) {
         </div>
 
         {/* 5-Star Rating Row */}
-        <div className="flex items-center gap-1 mb-2.5" aria-label={`${rating} out of 5 stars`}>
+        <div className="flex items-center gap-1 mb-2.5 shrink-0" aria-label={`${rating} out of 5 stars`}>
           {Array.from({ length: 5 }).map((_, i) => (
             <Star
               key={i}
@@ -95,13 +95,13 @@ export function TestimonialCard({ testimonial, isFeatured = false }) {
         </div>
 
         {/* Review Text Body */}
-        <p className="text-xs sm:text-[13px] text-[#411C10]/90 font-normal leading-relaxed italic line-clamp-4">
+        <p className="text-xs sm:text-[13px] text-[#411C10]/90 font-normal leading-relaxed italic line-clamp-4 flex-1">
           "{quoteText}"
         </p>
       </div>
 
       {/* Footer: Highlight / Tag & Google Maps link */}
-      <div className="mt-3.5 pt-2.5 border-t border-[#D29C83]/20 flex items-center justify-between text-[10px] text-[#7C3F27]">
+      <div className="mt-4 pt-2.5 border-t border-[#D29C83]/20 flex items-center justify-between text-[10px] text-[#7C3F27] shrink-0">
         {highlight ? (
           <span className="bg-[#FEEDDD] px-2 py-0.5 rounded-full font-medium truncate max-w-[170px] border border-[#D29C83]/25">
             {highlight}
