@@ -267,8 +267,8 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
                 {/* Customer Details */}
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-xs font-medium text-[#411C10] mb-1">
-                      Your Name <span className="text-rose-500">*</span>
+                    <label className="block text-xs font-semibold text-[#411C10] mb-1">
+                      Your Full Name <span className="text-rose-500">*</span>
                     </label>
                     <div className="relative">
                       <User className="w-4 h-4 text-[#A66D54] absolute left-3 top-1/2 -translate-y-1/2" />
@@ -276,6 +276,7 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
                         type="text"
                         name="name"
                         required
+                        minLength={2}
                         value={formData.name}
                         onChange={handleChange}
                         placeholder="e.g. Priya Sharma"
@@ -285,7 +286,7 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-[#411C10] mb-1">
+                    <label className="block text-xs font-semibold text-[#411C10] mb-1">
                       Phone Number (WhatsApp) <span className="text-rose-500">*</span>
                     </label>
                     <div className="relative">
@@ -294,16 +295,23 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
                         type="tel"
                         name="phone"
                         required
+                        pattern="[0-9]{10}"
+                        minLength={10}
+                        maxLength={10}
+                        title="Please enter a valid 10-digit mobile number"
                         value={formData.phone}
-                        onChange={handleChange}
-                        placeholder="e.g. +91 98765 43210"
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                          setFormData((prev) => ({ ...prev, phone: val }));
+                        }}
+                        placeholder="10-digit mobile number (e.g. 9876543210)"
                         className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#D29C83]/40 bg-[#FFF9F3] text-[#411C10] placeholder:text-[#A66D54]/50 focus:outline-none focus:border-[#7C3F27]"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-[#411C10] mb-1">
+                    <label className="block text-xs font-semibold text-[#411C10] mb-1">
                       Delivery Address / Location <span className="text-rose-500">*</span>
                     </label>
                     <div className="relative">
@@ -311,10 +319,11 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
                       <textarea
                         name="address"
                         required
+                        minLength={5}
                         rows={2}
                         value={formData.address}
                         onChange={handleChange}
-                        placeholder="Street, Apartment / House No., Landmark..."
+                        placeholder="House / Flat No., Street, Landmark, Area..."
                         className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#D29C83]/40 bg-[#FFF9F3] text-[#411C10] placeholder:text-[#A66D54]/50 focus:outline-none focus:border-[#7C3F27]"
                       />
                     </div>
@@ -322,14 +331,16 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-medium text-[#411C10] mb-1">
-                        Preferred Date
+                      <label className="block text-xs font-semibold text-[#411C10] mb-1">
+                        Preferred Date <span className="text-rose-500">*</span>
                       </label>
                       <div className="relative">
                         <Calendar className="w-4 h-4 text-[#A66D54] absolute left-3 top-1/2 -translate-y-1/2" />
                         <input
                           type="date"
                           name="deliveryDate"
+                          required
+                          min={new Date().toISOString().split('T')[0]}
                           value={formData.deliveryDate}
                           onChange={handleChange}
                           className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#D29C83]/40 bg-[#FFF9F3] text-[#411C10] focus:outline-none focus:border-[#7C3F27]"
@@ -338,13 +349,14 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-medium text-[#411C10] mb-1">
-                        Preferred Time Slot
+                      <label className="block text-xs font-semibold text-[#411C10] mb-1">
+                        Preferred Time Slot <span className="text-rose-500">*</span>
                       </label>
                       <div className="relative">
                         <Clock className="w-4 h-4 text-[#A66D54] absolute left-3 top-1/2 -translate-y-1/2" />
                         <select
                           name="deliveryTime"
+                          required
                           value={formData.deliveryTime}
                           onChange={handleChange}
                           className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#D29C83]/40 bg-[#FFF9F3] text-[#411C10] focus:outline-none focus:border-[#7C3F27]"

@@ -38,9 +38,24 @@ export function AdminPage() {
   const navigate = useNavigate();
 
   // Security gate: Must come through authorized portal link AND authenticate each time
-  const hasPortalLinkToken = Boolean(location.state?.fromAdminPortalLink);
+  const [isPortalVerified, setIsPortalVerified] = useState(() => {
+    return (
+      Boolean(location.state?.fromAdminPortalLink) ||
+      sessionStorage.getItem('pastry_admin_portal') === 'true'
+    );
+  });
 
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return sessionStorage.getItem('pastry_admin_authenticated') === 'true';
+  });
+
+  useEffect(() => {
+    if (location.state?.fromAdminPortalLink) {
+      sessionStorage.setItem('pastry_admin_portal', 'true');
+      setIsPortalVerified(true);
+    }
+  }, [location.state]);
+
   const [adminIdInput, setAdminIdInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -203,6 +218,7 @@ export function AdminPage() {
         // Safe continuation
       }
 
+      sessionStorage.setItem('pastry_admin_authenticated', 'true');
       setIsAuthenticated(true);
       setAuthLoading(false);
       showToast('Welcome back, Admin! Console unlocked.', 'success');
@@ -219,7 +235,10 @@ export function AdminPage() {
   };
 
   const handleLogout = () => {
+    sessionStorage.removeItem('pastry_admin_portal');
+    sessionStorage.removeItem('pastry_admin_authenticated');
     setIsAuthenticated(false);
+    setIsPortalVerified(false);
     setAdminIdInput('');
     setPasswordInput('');
     setAuthError('');
@@ -655,8 +674,8 @@ export function AdminPage() {
     return matchCat && matchQuery;
   });
 
-  // Security Guard 1: Direct URL access to /admin without clicking the  == is blocked
-  if (!hasPortalLinkToken && !isAuthenticated) {
+  // Security Guard 1: Direct URL access to /admin without clicking portal link is blocked
+  if (!isPortalVerified && !isAuthenticated) {
     return (
       <div className="min-h-screen bg-[#FDEADA] flex items-center justify-center p-4">
         <motion.div
@@ -1712,7 +1731,7 @@ export function AdminPage() {
                 {/* Image Upload / Image */}
                 <div>
                   <label className="block text-xs font-semibold text-[#411C10] mb-1">
-                    Photo (Image / Upload / URL)
+                    Photo (Image / Upload / URL) <span className="text-rose-500">*</span>
                   </label>
                   <div className="flex items-center gap-3">
                     {itemForm.image && (
@@ -1736,6 +1755,7 @@ export function AdminPage() {
                       </label>
                       <input
                         type="text"
+                        required
                         value={itemForm.image}
                         onChange={(e) => setItemForm({ ...itemForm, image: e.target.value })}
                         placeholder="Or paste direct image URL (https://...)"
@@ -1850,7 +1870,7 @@ export function AdminPage() {
               <form onSubmit={handleSaveCategory} className="space-y-4">
                 <div>
                   <label className="block text-xs font-semibold text-[#411C10] mb-1">
-                    Category Name
+                    Category Name <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -1916,10 +1936,11 @@ export function AdminPage() {
                 <div className="grid grid-cols-3 gap-3">
                   <div className="col-span-1">
                     <label className="block text-xs font-semibold text-[#411C10] mb-1">
-                      Number
+                      Number <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="text"
+                      required
                       value={offeringForm.number}
                       onChange={(e) => setOfferingForm({ ...offeringForm, number: e.target.value })}
                       placeholder="01"
@@ -1928,7 +1949,7 @@ export function AdminPage() {
                   </div>
                   <div className="col-span-2">
                     <label className="block text-xs font-semibold text-[#411C10] mb-1">
-                      Title *
+                      Title <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="text"
@@ -1943,10 +1964,11 @@ export function AdminPage() {
 
                 <div>
                   <label className="block text-xs font-semibold text-[#411C10] mb-1">
-                    Subtitle / Flavors
+                    Subtitle / Flavors <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="text"
+                    required
                     value={offeringForm.subtitle}
                     onChange={(e) => setOfferingForm({ ...offeringForm, subtitle: e.target.value })}
                     placeholder="e.g. Chocolate • Biscoff • Red Velvet"
@@ -1956,10 +1978,11 @@ export function AdminPage() {
 
                 <div>
                   <label className="block text-xs font-semibold text-[#411C10] mb-1">
-                    Description
+                    Description <span className="text-rose-500">*</span>
                   </label>
                   <textarea
                     rows={2}
+                    required
                     value={offeringForm.description}
                     onChange={(e) => setOfferingForm({ ...offeringForm, description: e.target.value })}
                     placeholder="Short description of this offering..."
@@ -1970,10 +1993,11 @@ export function AdminPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-[#411C10] mb-1">
-                      Starting Price
+                      Starting Price <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="text"
+                      required
                       value={offeringForm.price}
                       onChange={(e) => setOfferingForm({ ...offeringForm, price: e.target.value })}
                       placeholder="From ₹399/-"
@@ -1982,7 +2006,7 @@ export function AdminPage() {
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-[#411C10] mb-1">
-                      Accent Pill Text
+                      Accent Pill Text (Optional)
                     </label>
                     <input
                       type="text"
@@ -1997,7 +2021,7 @@ export function AdminPage() {
                 {/* Offering Image */}
                 <div>
                   <label className="block text-xs font-semibold text-[#411C10] mb-1">
-                    Offering Image (Cloudinary)
+                    Offering Image (Cloudinary) <span className="text-rose-500">*</span>
                   </label>
                   <div className="flex items-center gap-3">
                     {offeringForm.image && (
@@ -2021,6 +2045,7 @@ export function AdminPage() {
                       </label>
                       <input
                         type="text"
+                        required
                         value={offeringForm.image}
                         onChange={(e) => setOfferingForm({ ...offeringForm, image: e.target.value })}
                         placeholder="Cloudinary image URL"

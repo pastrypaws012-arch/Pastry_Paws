@@ -260,7 +260,7 @@ export function TrackOrderPage() {
                 htmlFor="phone-input"
                 className="block text-xs font-semibold text-[#411C10] mb-1.5"
               >
-                Mobile Phone Number
+                Mobile Phone Number <span className="text-rose-500">*</span>
               </label>
               <div className="relative flex items-center">
                 <div className="absolute left-3.5 flex items-center gap-1.5 text-[#A66D54] pointer-events-none">
@@ -272,10 +272,16 @@ export function TrackOrderPage() {
                 <input
                   id="phone-input"
                   type="tel"
+                  required
                   inputMode="numeric"
+                  pattern="[0-9]{10}"
+                  minLength={10}
+                  maxLength={10}
+                  title="Please enter a valid 10-digit mobile number"
                   value={phone}
                   onChange={(e) => {
-                    setPhone(e.target.value);
+                    const cleaned = e.target.value.replace(/\D/g, '').slice(0, 10);
+                    setPhone(cleaned);
                     if (errorMsg) setErrorMsg('');
                   }}
                   placeholder="Enter 10-digit number (e.g. 9876543210)"

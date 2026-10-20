@@ -16,17 +16,24 @@ import {
 } from 'lucide-react';
 
 export function Contact() {
-  const [inquiryType, setInquiryType] = useState('Celebration Cake');
+  const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [deliveryLocation, setDeliveryLocation] = useState('');
+  const [inquiryType, setInquiryType] = useState('Celebration Cake (Chocolate, Biscoff, Red Velvet, Vanilla)');
   const [occasionDate, setOccasionDate] = useState('');
   const [guestCount, setGuestCount] = useState('');
   const [customNotes, setCustomNotes] = useState('');
 
   const buildCustomWhatsAppUrl = () => {
-    let text = `Hello! I'd love to inquire about a custom order for Butter & Bloom.`;
-    if (inquiryType) text += `\nType: ${inquiryType}`;
-    if (occasionDate) text += `\nTarget Date: ${occasionDate}`;
-    if (guestCount) text += `\nGuest Count: ${guestCount}`;
-    if (customNotes) text += `\nDetails: ${customNotes}`;
+    let text = `Hello Pastry Paws! I'd like to inquire about a custom bake order:`;
+    if (customerName.trim()) text += `\n*Name:* ${customerName.trim()}`;
+    if (customerPhone.trim()) text += `\n*Phone:* ${customerPhone.trim()}`;
+    if (deliveryLocation.trim()) text += `\n*Location:* ${deliveryLocation.trim()}`;
+    if (inquiryType) text += `\n*Creation Type:* ${inquiryType}`;
+    if (occasionDate) text += `\n*Target Date:* ${occasionDate}`;
+    if (guestCount.trim()) text += `\n*Servings:* ${guestCount.trim()}`;
+    if (customNotes.trim()) text += `\n*Notes:* ${customNotes.trim()}`;
+    text += `\n\nPlease confirm availability and details. Thank you!`;
 
     return `https://wa.me/${brandConfig.contact.whatsappNumber}?text=${encodeURIComponent(text)}`;
   };
@@ -174,15 +181,71 @@ export function Contact() {
                   }}
                   className="space-y-4"
                 >
+                  {/* Customer Contact Details */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div>
+                      <label className="block text-xs font-semibold text-[#411C10] uppercase tracking-wider mb-1.5">
+                        Your Name <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        minLength={2}
+                        placeholder="e.g. Ananya Rao"
+                        value={customerName}
+                        onChange={(e) => setCustomerName(e.target.value)}
+                        className="w-full bg-[#FEEDDD]/60 border border-[#D29C83]/50 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#411C10] focus:ring-2 focus:ring-[#7C3F27] focus:outline-none transition-colors"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-[#411C10] uppercase tracking-wider mb-1.5">
+                        Mobile Number <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="tel"
+                        required
+                        pattern="[0-9]{10}"
+                        minLength={10}
+                        maxLength={10}
+                        title="Please enter a valid 10-digit mobile number"
+                        placeholder="10-digit mobile number"
+                        value={customerPhone}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                          setCustomerPhone(val);
+                        }}
+                        className="w-full bg-[#FEEDDD]/60 border border-[#D29C83]/50 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#411C10] focus:ring-2 focus:ring-[#7C3F27] focus:outline-none transition-colors"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Delivery Location / Area */}
+                  <div>
+                    <label className="block text-xs font-semibold text-[#411C10] uppercase tracking-wider mb-1.5">
+                      Delivery Location / Area <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      minLength={3}
+                      placeholder="e.g. Anna Nagar, Kilpauk, T. Nagar..."
+                      value={deliveryLocation}
+                      onChange={(e) => setDeliveryLocation(e.target.value)}
+                      className="w-full bg-[#FEEDDD]/60 border border-[#D29C83]/50 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#411C10] focus:ring-2 focus:ring-[#7C3F27] focus:outline-none transition-colors"
+                    />
+                  </div>
+
                   {/* Category Selection */}
                   <div>
-                    <label className="block text-xs font-semibold text-[#411C10] uppercase tracking-wider mb-2">
-                      Occasion / Creation Type
+                    <label className="block text-xs font-semibold text-[#411C10] uppercase tracking-wider mb-1.5">
+                      Occasion / Creation Type <span className="text-rose-500">*</span>
                     </label>
                     <select
+                      required
                       value={inquiryType}
                       onChange={(e) => setInquiryType(e.target.value)}
-                      className="w-full bg-[#FEEDDD]/60 border border-[#D29C83]/50 rounded-xl px-4 py-2.5 text-sm text-[#411C10] focus:ring-2 focus:ring-[#7C3F27] focus:outline-none transition-colors"
+                      className="w-full bg-[#FEEDDD]/60 border border-[#D29C83]/50 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#411C10] focus:ring-2 focus:ring-[#7C3F27] focus:outline-none transition-colors"
                     >
                       <option value="Celebration Cake (Chocolate, Biscoff, Red Velvet, Vanilla)">Celebration Cake (1/2 kg / 1 kg)</option>
                       <option value="Choco Lava Cake (₹99/- each)">Choco Lava Cake (₹99/- each)</option>
@@ -195,43 +258,45 @@ export function Contact() {
                   </div>
 
                   {/* Date & Guest Count Row */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                     <div>
-                      <label className="block text-xs font-semibold text-[#411C10] uppercase tracking-wider mb-2">
-                        Event Date (Approx)
+                      <label className="block text-xs font-semibold text-[#411C10] uppercase tracking-wider mb-1.5">
+                        Target Event Date <span className="text-rose-500">*</span>
                       </label>
                       <input
                         type="date"
+                        required
+                        min={new Date().toISOString().split('T')[0]}
                         value={occasionDate}
                         onChange={(e) => setOccasionDate(e.target.value)}
-                        className="w-full bg-[#FEEDDD]/60 border border-[#D29C83]/50 rounded-xl px-4 py-2.5 text-sm text-[#411C10] focus:ring-2 focus:ring-[#7C3F27] focus:outline-none transition-colors"
+                        className="w-full bg-[#FEEDDD]/60 border border-[#D29C83]/50 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#411C10] focus:ring-2 focus:ring-[#7C3F27] focus:outline-none transition-colors"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-[#411C10] uppercase tracking-wider mb-2">
-                        Estimated Servings
+                      <label className="block text-xs font-semibold text-[#411C10] uppercase tracking-wider mb-1.5">
+                        Estimated Servings (Optional)
                       </label>
                       <input
                         type="text"
                         placeholder="e.g. 15–20 guests"
                         value={guestCount}
                         onChange={(e) => setGuestCount(e.target.value)}
-                        className="w-full bg-[#FEEDDD]/60 border border-[#D29C83]/50 rounded-xl px-4 py-2.5 text-sm text-[#411C10] focus:ring-2 focus:ring-[#7C3F27] focus:outline-none transition-colors"
+                        className="w-full bg-[#FEEDDD]/60 border border-[#D29C83]/50 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#411C10] focus:ring-2 focus:ring-[#7C3F27] focus:outline-none transition-colors"
                       />
                     </div>
                   </div>
 
                   {/* Notes / Special Requests */}
                   <div>
-                    <label className="block text-xs font-semibold text-[#411C10] uppercase tracking-wider mb-2">
-                      Inspiration or Flavor Notes
+                    <label className="block text-xs font-semibold text-[#411C10] uppercase tracking-wider mb-1.5">
+                      Inspiration or Flavor Notes (Optional)
                     </label>
                     <textarea
-                      rows={3}
-                      placeholder="e.g. Peach tones with edible pressed florals, raspberry coulis..."
+                      rows={2}
+                      placeholder="e.g. Chocolate truffle with gold leaf, less sweet, eggless..."
                       value={customNotes}
                       onChange={(e) => setCustomNotes(e.target.value)}
-                      className="w-full bg-[#FEEDDD]/60 border border-[#D29C83]/50 rounded-xl px-4 py-2.5 text-sm text-[#411C10] focus:ring-2 focus:ring-[#7C3F27] focus:outline-none transition-colors resize-none"
+                      className="w-full bg-[#FEEDDD]/60 border border-[#D29C83]/50 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#411C10] focus:ring-2 focus:ring-[#7C3F27] focus:outline-none transition-colors resize-none"
                     />
                   </div>
 
