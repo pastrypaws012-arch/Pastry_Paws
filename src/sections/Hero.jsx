@@ -106,20 +106,20 @@ export function Hero() {
               initial={prefersReducedMotion ? {} : { opacity: 0, scale: 0.94, y: 30 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               transition={{ duration: 0.9, delay: 0.35, ease: [0.16, 1, 0.3, 1] }}
-              className="relative w-full max-w-[300px] sm:max-w-[350px] lg:max-w-[380px]"
+              className="relative w-full max-w-[340px] sm:max-w-[420px] lg:max-w-[460px]"
             >
               {/* Decorative vintage frame backdrop */}
               <div className="absolute -inset-2.5 sm:-inset-3 rounded-3xl border border-[#D29C83]/40 -rotate-1 pointer-events-none" />
               <div className="absolute -inset-2.5 sm:-inset-3 rounded-3xl bg-[#FEE5D2]/50 rotate-1 -z-10" />
 
               {/* Main Image Container */}
-              <div className="relative rounded-2xl overflow-hidden shadow-lg h-[360px] sm:h-[400px] lg:h-[450px] w-full bg-[#FDEADA]">
+              <div className="relative rounded-2xl overflow-hidden shadow-lg h-[340px] sm:h-[390px] lg:h-[430px] w-full bg-[#FDEADA]">
                 <img
-                  src="https://res.cloudinary.com/ku59ko3p/image/upload/v1792430625/PastryPaws/hero-cake.jpg"
+                  src="/images/hero-ribbon-cake.jpg"
                   onError={(e) => { e.currentTarget.src = '/images/hero-cake.jpg'; }}
-                  alt="Artisanal celebration cake by Pastry Paws"
+                  alt="Artisanal vintage ribbon celebration cake by Pastry Paws"
                   loading="eager"
-                  className="w-[200%] max-w-none h-full object-cover object-left transition-transform duration-1000 hover:scale-103"
+                  className="w-full h-full object-cover object-center transition-transform duration-700 hover:scale-105"
                 />
 
                 {/* Floating pill badge */}
@@ -137,7 +137,7 @@ export function Hero() {
                       Signature Creation
                     </p>
                     <p className="font-serif text-xs sm:text-sm text-[#7C3F27] italic">
-                      Blush Botanical Tier &amp; Pressed Pansies
+                      Vintage Ribbon Cake &amp; Silk Bows
                     </p>
                   </div>
                 </motion.div>
