@@ -334,7 +334,7 @@ export function ImageLightbox({
                 </div>
               )}
 
-              {/* CTAs: Add to Cart, Buy Now, and WhatsApp */}
+              {/* CTAs: Add to Cart and WhatsApp */}
               <div className="mt-5 pt-4 border-t border-[#D29C83]/20 space-y-2.5">
                 <div className="flex items-center gap-2">
                   {/* Add to Cart (Primary) */}
@@ -345,25 +345,10 @@ export function ImageLightbox({
                       setAddedToast(true);
                       setTimeout(() => setAddedToast(false), 3500);
                     }}
-                    className="flex-1 inline-flex items-center justify-center gap-2 bg-[#7C3F27] text-[#FEEDDD] hover:bg-[#5E2B19] py-3 px-4 rounded-2xl text-xs sm:text-sm font-semibold tracking-wide transition-all shadow-md hover:shadow-lg active:scale-[0.98] cursor-pointer"
+                    className="flex-1 inline-flex items-center justify-center gap-2 bg-[#7C3F27] text-[#FEEDDD] hover:bg-[#5E2B19] py-3.5 px-5 rounded-2xl text-xs sm:text-sm font-semibold tracking-wide transition-all shadow-md hover:shadow-lg active:scale-[0.98] cursor-pointer"
                   >
                     <ShoppingCart className="w-4 h-4 text-[#F9C8B5] shrink-0" />
                     <span>Add to Cart (₹{grandTotal}/-)</span>
-                  </button>
-
-                  {/* Buy Now (Opens Checkout directly) */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      addToCart(item, selectedTier, quantity, selectedAddons);
-                      onClose?.();
-                      openCheckout();
-                    }}
-                    className="inline-flex items-center justify-center gap-1.5 bg-[#FEEDDD] text-[#7C3F27] hover:bg-[#FEE5D2] border border-[#D29C83]/50 py-3 px-3.5 rounded-2xl text-xs font-semibold tracking-wide transition-all shadow-2xs hover:shadow active:scale-[0.98] cursor-pointer"
-                    title="Checkout immediately"
-                  >
-                    <ShoppingBag className="w-4 h-4 text-[#7C3F27]" />
-                    <span className="hidden sm:inline">Buy Now</span>
                   </button>
 
                   {/* WhatsApp Inquiry */}
@@ -372,7 +357,7 @@ export function ImageLightbox({
                     target="_blank"
                     rel="noopener noreferrer"
                     title={`Enquire about "${item.title}" on WhatsApp`}
-                    className="shrink-0 w-11 h-11 rounded-2xl bg-[#25D366]/15 hover:bg-[#25D366] text-[#128C7E] hover:text-white border border-[#25D366]/35 flex items-center justify-center transition-all duration-200 shadow-2xs hover:shadow hover:scale-105 active:scale-95 cursor-pointer"
+                    className="shrink-0 w-12 h-12 rounded-2xl bg-[#25D366]/15 hover:bg-[#25D366] text-[#128C7E] hover:text-white border border-[#25D366]/35 flex items-center justify-center transition-all duration-200 shadow-2xs hover:shadow hover:scale-105 active:scale-95 cursor-pointer"
                     aria-label={`Enquire about ${item.title} on WhatsApp`}
                   >
                     <WhatsAppIcon className="w-5 h-5" />

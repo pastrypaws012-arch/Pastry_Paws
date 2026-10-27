@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { Expand, Check, ShoppingBag } from 'lucide-react';
+import { Expand, Check, ShoppingBag, Plus, Minus } from 'lucide-react';
+import { useCart } from '../context/CartContext';
 
 /**
  * MenuCard
@@ -9,9 +10,12 @@ import { Expand, Check, ShoppingBag } from 'lucide-react';
  * 1. Image with zoom & lightbox trigger
  * 2. Title, category, starting price
  * 3. Exact price-by-weight breakdown table (250gm, 500gm, 1kg, etc.)
- * 4. Primary "Order Now" button (opens rich product details / portion selection screen)
+ * 4. Interactive Cart Quantity modifier or Primary "Order Now" button
  */
 export function MenuCard({ item, onOpenLightbox, onOrderNow, priority = false }) {
+  const { getItemQuantity, incrementItem, decrementItem } = useCart();
+  const cartQuantity = getItemQuantity(item);
+
   const [selectedSize, setSelectedSize] = useState(
     item.pricingDetails && item.pricingDetails.length > 0
       ? item.pricingDetails[0].size
@@ -68,6 +72,15 @@ export function MenuCard({ item, onOpenLightbox, onOrderNow, priority = false })
               </span>
             )}
           </div>
+
+          {/* In Cart Indicator Ribbon */}
+          {cartQuantity > 0 && (
+            <div className="absolute top-3 right-3">
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-700 text-white shadow-xs">
+                <span>In Cart ({cartQuantity})</span>
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Card Body */}
@@ -134,16 +147,51 @@ export function MenuCard({ item, onOpenLightbox, onOrderNow, priority = false })
         </div>
       </div>
 
-      {/* Card Action Footer: Order Now (Opens Product Details Screen) */}
+      {/* Card Action Footer: Quantity Selector (if in cart) OR Order Now Button */}
       <div className="px-4 pb-4 sm:px-5 sm:pb-5 pt-0">
-        <button
-          type="button"
-          onClick={() => (onOpenLightbox ? onOpenLightbox(item) : onOrderNow?.(item, selectedTier))}
-          className="w-full inline-flex items-center justify-center gap-2 bg-[#7C3F27] text-[#FEEDDD] hover:bg-[#5E2B19] py-2.5 px-4 rounded-xl text-xs sm:text-sm font-semibold tracking-wide transition-all shadow-2xs hover:shadow active:scale-[0.98] cursor-pointer"
-        >
-          <ShoppingBag className="w-4 h-4 text-[#F9C8B5] shrink-0" />
-          <span>Order Now</span>
-        </button>
+        {cartQuantity > 0 ? (
+          <div className="w-full flex items-center justify-between bg-[#FEEDDD] p-1.5 rounded-xl border border-[#D29C83]/50 shadow-2xs">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                decrementItem(item);
+              }}
+              className="w-8 h-8 rounded-lg bg-[#FFF9F3] text-[#7C3F27] hover:bg-[#FEE5D2] flex items-center justify-center transition-all cursor-pointer shadow-2xs active:scale-95"
+              aria-label={`Decrease quantity of ${item.title}`}
+              title="Decrease quantity"
+            >
+              <Minus className="w-4 h-4 stroke-[2.5]" />
+            </button>
+
+            <div className="flex items-center gap-1.5 text-xs font-bold text-[#411C10]">
+              <span className="text-[11px] text-[#A66D54] uppercase tracking-wider font-semibold">In Cart:</span>
+              <span className="w-6 text-center font-extrabold text-[#7C3F27] text-sm">{cartQuantity}</span>
+            </div>
+
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                incrementItem(item, selectedTier);
+              }}
+              className="w-8 h-8 rounded-lg bg-[#7C3F27] text-[#FEEDDD] hover:bg-[#5E2B19] flex items-center justify-center transition-all cursor-pointer shadow-2xs active:scale-95"
+              aria-label={`Increase quantity of ${item.title}`}
+              title="Increase quantity"
+            >
+              <Plus className="w-4 h-4 stroke-[2.5]" />
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => (onOpenLightbox ? onOpenLightbox(item) : onOrderNow?.(item, selectedTier))}
+            className="w-full inline-flex items-center justify-center gap-2 bg-[#7C3F27] text-[#FEEDDD] hover:bg-[#5E2B19] py-2.5 px-4 rounded-xl text-xs sm:text-sm font-semibold tracking-wide transition-all shadow-2xs hover:shadow active:scale-[0.98] cursor-pointer"
+          >
+            <ShoppingBag className="w-4 h-4 text-[#F9C8B5] shrink-0" />
+            <span>Order Now</span>
+          </button>
+        )}
       </div>
     </motion.div>
   );

@@ -133,10 +133,64 @@ export function CartProvider({ children }) {
   };
 
   /**
-   * Empty the entire cart
+   * Helper to get total quantity of an item currently in the cart
    */
-  const clearCart = () => {
-    setCartItems([]);
+  const getItemQuantity = (itemOrId) => {
+    if (!itemOrId) return 0;
+    const targetId = typeof itemOrId === 'string' ? itemOrId : itemOrId._id || itemOrId.id;
+    const targetTitle = typeof itemOrId === 'object' ? itemOrId.title?.toLowerCase() : '';
+
+    return cartItems
+      .filter(
+        (it) =>
+          it.itemId === targetId ||
+          (targetTitle && it.itemTitle?.toLowerCase() === targetTitle)
+      )
+      .reduce((sum, it) => sum + it.quantity, 0);
+  };
+
+  /**
+   * Increment quantity for an item from card
+   */
+  const incrementItem = (item, selectedTier) => {
+    if (!item) return;
+    const targetId = item._id || item.id;
+    const targetTitle = item.title?.toLowerCase();
+
+    const existing = cartItems.find(
+      (it) =>
+        it.itemId === targetId ||
+        (targetTitle && it.itemTitle?.toLowerCase() === targetTitle)
+    );
+
+    if (existing) {
+      updateQuantity(existing.cartKey, existing.quantity + 1);
+    } else {
+      addToCart(item, selectedTier, 1, []);
+    }
+  };
+
+  /**
+   * Decrement quantity for an item from card (reverts to 0 if count drops below 1)
+   */
+  const decrementItem = (itemOrId) => {
+    if (!itemOrId) return;
+    const targetId = typeof itemOrId === 'string' ? itemOrId : itemOrId._id || itemOrId.id;
+    const targetTitle = typeof itemOrId === 'object' ? itemOrId.title?.toLowerCase() : '';
+
+    const existing = cartItems.find(
+      (it) =>
+        it.itemId === targetId ||
+        (targetTitle && it.itemTitle?.toLowerCase() === targetTitle)
+    );
+
+    if (existing) {
+      if (existing.quantity <= 1) {
+        removeFromCart(existing.cartKey);
+      } else {
+        updateQuantity(existing.cartKey, existing.quantity - 1);
+      }
+    }
   };
 
   const totalItemsCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
@@ -157,6 +211,9 @@ export function CartProvider({ children }) {
     updateQuantity,
     removeFromCart,
     clearCart,
+    getItemQuantity,
+    incrementItem,
+    decrementItem,
     totalItemsCount,
     cartSubtotal,
     isCartOpen,

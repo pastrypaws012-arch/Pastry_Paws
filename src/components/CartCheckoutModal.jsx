@@ -18,10 +18,12 @@ import {
   Banknote,
   QrCode,
   Check,
+  Download,
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { brandConfig } from '../data/brand';
 import { getCachedPaymentConfig } from '../utils/paymentConfig';
+import { printOrderInvoice } from '../utils/invoiceGenerator';
 import { WhatsAppIcon } from './Icons';
 import { API_BASE_URL } from '../utils/api';
 import { useNavigate } from 'react-router-dom';
@@ -420,6 +422,21 @@ export function CartCheckoutModal() {
                     className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#D29C83]/40 bg-[#FFF9F3] text-[#411C10] focus:outline-none focus:ring-1 focus:ring-[#7C3F27]"
                   />
                 </div>
+
+                {/* Important Pickup & Delivery Policy Notice */}
+                <div className="mt-2.5 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-950 space-y-1.5 text-left">
+                  <div className="flex items-center gap-1.5 font-bold text-amber-900 text-xs">
+                    <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" />
+                    <span>Important Pickup &amp; Delivery Policy:</span>
+                  </div>
+                  <p className="text-[11px] text-[#7C3F27] leading-relaxed">
+                    Pastry Paws is an artisan home studio bakery. <strong>We do not provide direct home delivery.</strong>
+                  </p>
+                  <div className="text-[11px] text-[#411C10] space-y-0.5 pt-0.5">
+                    <p>• <strong>Self-Pickup:</strong> You can come directly to our studio in Avadi to collect your fresh bakes.</p>
+                    <p>• <strong>Parcel / Courier Service:</strong> Or you can easily book your preferred delivery partner (Dunzo, Porter, Swiggy Genie, or Rapido) to pick up your box from our studio and deliver to you.</p>
+                  </div>
+                </div>
               </div>
 
               {/* Date & Time Slot */}
@@ -742,16 +759,28 @@ export function CartCheckoutModal() {
                   <span>Send Order Summary via WhatsApp</span>
                 </a>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    closeCheckout();
-                    navigate(`/track-order?phone=${encodeURIComponent(placedOrder.customerPhone)}`);
-                  }}
-                  className="w-full inline-flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold text-[#7C3F27] hover:text-[#411C10] transition-colors cursor-pointer"
-                >
-                  <span>Track This Order Online →</span>
-                </button>
+                {/* Download Bill PDF & Track Order Buttons */}
+                <div className="flex flex-col sm:flex-row gap-2.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => printOrderInvoice(placedOrder)}
+                    className="flex-1 inline-flex items-center justify-center gap-2 bg-[#7C3F27] text-[#FEEDDD] hover:bg-[#5E2B19] py-2.5 px-4 rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-xs cursor-pointer active:scale-95"
+                  >
+                    <Download className="w-4 h-4 text-[#F9C8B5]" />
+                    <span>Download Bill (PDF)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      closeCheckout();
+                      navigate(`/track-order?phone=${encodeURIComponent(placedOrder.customerPhone)}`);
+                    }}
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl bg-[#FEEDDD] text-[#7C3F27] hover:bg-[#FEE5D2] border border-[#D29C83]/40 text-xs sm:text-sm font-semibold transition-colors cursor-pointer"
+                  >
+                    <span>Track Order Online →</span>
+                  </button>
+                </div>
               </div>
             </div>
           )}
