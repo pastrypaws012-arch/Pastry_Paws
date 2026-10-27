@@ -195,12 +195,13 @@ export function CartCheckoutModal() {
         const uploadData = await uploadRes.json();
         setUploadingImage(false);
 
-        if (!uploadRes.ok || !uploadData.url) {
+        const imgUrl = uploadData.imageUrl || uploadData.url;
+        if (!uploadRes.ok || !imgUrl) {
           throw new Error(uploadData.message || 'Failed to upload payment screenshot. Please try again.');
         }
 
-        uploadedScreenshotUrl = uploadData.url;
-        uploadedScreenshotPublicId = uploadData.public_id || '';
+        uploadedScreenshotUrl = imgUrl;
+        uploadedScreenshotPublicId = uploadData.publicId || uploadData.public_id || '';
       }
 
       // Format payload items
