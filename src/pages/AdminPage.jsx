@@ -194,6 +194,7 @@ export function AdminPage() {
     badge: '',
     featured: false,
     pricingDetails: [{ size: '250gm', price: '₹199/-' }],
+    addons: [],
   });
 
   // Category Form Modal State
@@ -700,6 +701,29 @@ export function AdminPage() {
       const updated = [...prev.pricingDetails];
       updated[index][field] = value;
       return { ...prev, pricingDetails: updated };
+    });
+  };
+
+  // Add-on row handlers (for optional product extras like toppings, candles, packaging)
+  const handleAddAddon = () => {
+    setItemForm((prev) => ({
+      ...prev,
+      addons: [...(prev.addons || []), { name: '', price: '' }],
+    }));
+  };
+
+  const handleRemoveAddon = (index) => {
+    setItemForm((prev) => ({
+      ...prev,
+      addons: (prev.addons || []).filter((_, i) => i !== index),
+    }));
+  };
+
+  const handleAddonChange = (index, field, value) => {
+    setItemForm((prev) => {
+      const updated = [...(prev.addons || [])];
+      updated[index][field] = value;
+      return { ...prev, addons: updated };
     });
   };
 
@@ -1710,6 +1734,7 @@ export function AdminPage() {
                         { size: '250gm', price: '₹199/-' },
                         { size: '500gm', price: '₹399/-' },
                       ],
+                      addons: [],
                     });
                     setIsItemModalOpen(true);
                   }}
@@ -1980,6 +2005,7 @@ export function AdminPage() {
                                 item.pricingDetails && item.pricingDetails.length > 0
                                   ? item.pricingDetails
                                   : [{ size: 'Portion', price: `₹${item.startingPrice}/-` }],
+                              addons: Array.isArray(item.addons) ? item.addons : [],
                             });
                             setIsItemModalOpen(true);
                           }}
@@ -2547,12 +2573,32 @@ export function AdminPage() {
                         </span>
                       </div>
 
-                      <h4 className="font-serif text-base text-[#411C10] leading-snug">
-                        {ord.itemTitle} ({ord.selectedSize})
+                      <h4 className="font-serif text-base text-[#411C10] leading-snug flex items-center flex-wrap gap-1.5">
+                        <span>{ord.itemTitle} ({ord.selectedSize})</span>
+                        {ord.quantity && ord.quantity > 1 && (
+                          <span className="text-[11px] font-sans font-bold bg-[#7C3F27] text-[#FEEDDD] px-2 py-0.5 rounded-full">
+                            ×{ord.quantity}
+                          </span>
+                        )}
                       </h4>
                       <div className="text-sm font-bold text-[#7C3F27] mt-0.5">
                         {ord.price}
                       </div>
+
+                      {/* Selected Add-ons Display */}
+                      {ord.selectedAddons && ord.selectedAddons.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {ord.selectedAddons.map((addon, aIdx) => (
+                            <span
+                              key={aIdx}
+                              className="inline-flex items-center gap-1 text-[10.5px] font-semibold bg-[#FEEDDD] text-[#7C3F27] px-2 py-0.5 rounded-md border border-[#D29C83]/30"
+                            >
+                              <span>+ {addon.name}</span>
+                              <span className="opacity-75 font-normal">(₹{addon.price}/-)</span>
+                            </span>
+                          ))}
+                        </div>
+                      )}
 
                       <div className="mt-3 pt-3 border-t border-[#D29C83]/20 text-xs text-[#7C3F27] space-y-1">
                         <p>
@@ -4142,6 +4188,69 @@ export function AdminPage() {
                       </div>
                     ))}
                   </div>
+                </div>
+
+                {/* Optional Add-ons Section for Item Customization */}
+                <div className="space-y-2 pt-2 border-t border-[#D29C83]/20">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="text-xs font-semibold text-[#411C10] block">
+                        Product Add-ons &amp; Extras (Optional)
+                      </label>
+                      <span className="text-[10px] text-[#A66D54]">
+                        Extras customers can select when ordering this creation
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleAddAddon}
+                      className="text-xs text-[#7C3F27] hover:underline flex items-center gap-1 font-medium cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Add Add-on</span>
+                    </button>
+                  </div>
+
+                  {itemForm.addons && itemForm.addons.length > 0 ? (
+                    <div className="space-y-2">
+                      {itemForm.addons.map((addon, idx) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            required
+                            value={addon.name}
+                            onChange={(e) => handleAddonChange(idx, 'name', e.target.value)}
+                            placeholder="Add-on Name (e.g. Extra Ganache, Birthday Candle, Gift Box)"
+                            className="flex-1 px-3 py-1.5 text-xs rounded-xl border border-[#D29C83]/40 bg-[#FFF9F3] text-[#411C10] focus:outline-none"
+                          />
+                          <div className="relative w-28 shrink-0">
+                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-[#A66D54]">₹</span>
+                            <input
+                              type="number"
+                              required
+                              min="0"
+                              value={addon.price}
+                              onChange={(e) => handleAddonChange(idx, 'price', e.target.value)}
+                              placeholder="Price"
+                              className="w-full pl-6 pr-2 py-1.5 text-xs rounded-xl border border-[#D29C83]/40 bg-[#FFF9F3] text-[#411C10] focus:outline-none"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveAddon(idx)}
+                            className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg cursor-pointer"
+                            title="Remove Add-on"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-[#7C3F27]/70 italic bg-[#FEEDDD]/30 p-2.5 rounded-xl border border-dashed border-[#D29C83]/30">
+                      No add-ons configured yet. Click "+ Add Add-on" above to offer extras like candles, greeting tags, or extra sauces!
+                    </p>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-2 pt-2">

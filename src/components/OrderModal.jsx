@@ -60,6 +60,18 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
     notes: '',
   });
 
+  // Quantity & Add-on states
+  const [quantity, setQuantity] = useState(1);
+  const [selectedAddons, setSelectedAddons] = useState([]);
+
+  // Reset quantity and add-ons when modal opens with new item
+  React.useEffect(() => {
+    if (isOpen) {
+      setQuantity(1);
+      setSelectedAddons([]);
+    }
+  }, [isOpen, item]);
+
   // Step 2: Payment Details (UPI / Google Pay vs Cash on Delivery)
   const [paymentMethod, setPaymentMethod] = useState('UPI'); // 'UPI' | 'COD'
   const [paymentScreenshot, setPaymentScreenshot] = useState('');
@@ -79,8 +91,25 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
     price: `₹${item.startingPrice || 299}/-`,
   };
 
-  // Clean numeric price for UPI payment URI (e.g. "₹399/-" -> "399")
-  const numericPrice = (currentTier.price || '').replace(/[^0-9]/g, '') || '299';
+  // Base tier unit price as integer (e.g. "₹399/-" -> 399)
+  const baseUnitPrice =
+    parseInt(String(currentTier.price || '').replace(/[^0-9]/g, ''), 10) ||
+    item.startingPrice ||
+    299;
+
+  // Selected add-ons unit total (e.g. +40 + 30 = 70)
+  const addonsUnitTotal = selectedAddons.reduce((sum, a) => sum + (Number(a.price) || 0), 0);
+
+  // Total per unit (base price + sum of selected add-on prices)
+  const singleItemTotal = baseUnitPrice + addonsUnitTotal;
+
+  // Grand Total for entire order (unitTotal * quantity)
+  const grandTotal = singleItemTotal * quantity;
+  const formattedTotal = `₹${grandTotal}/-`;
+  const addonsTotalCost = addonsUnitTotal * quantity;
+
+  // Clean numeric price for UPI payment URI (always matches exact grand total)
+  const numericPrice = String(grandTotal);
   const upiId = paymentConfig.upiId || brandConfig.payment?.upiId || '9790983844@okaxis';
   const payeeName = paymentConfig.payeeName || brandConfig.payment?.payeeName || 'Pastry Paws';
   const paymentPhone = paymentConfig.phoneNumber || brandConfig.contact?.phone || '9790983844';
@@ -115,6 +144,17 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
       [e.target.name]: e.target.value,
     }));
     if (formError) setFormError('');
+  };
+
+  const handleToggleAddon = (addon) => {
+    setSelectedAddons((prev) => {
+      const exists = prev.some((a) => a.name === addon.name);
+      if (exists) {
+        return prev.filter((a) => a.name !== addon.name);
+      } else {
+        return [...prev, { name: addon.name, price: Number(addon.price) || 0 }];
+      }
+    });
   };
 
   const handleCopyUpi = () => {
@@ -209,7 +249,11 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
       itemTitle: item.title,
       category: item.category || '',
       selectedSize: currentTier.size,
-      price: currentTier.price,
+      quantity,
+      selectedAddons,
+      addonsTotal: addonsTotalCost,
+      totalAmount: grandTotal,
+      price: formattedTotal,
       itemImage: item.image,
       paymentMethod: method,
       paymentScreenshot: isCOD ? '' : screenshot,
@@ -279,6 +323,8 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
     setPlacedOrder(null);
     setModalStep('details');
     setPaymentMethod('UPI');
+    setQuantity(1);
+    setSelectedAddons([]);
     setFormData({
       name: '',
       phone: '',
@@ -294,12 +340,17 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
     onClose();
   };
 
+  const whatsappAddonsSummary =
+    placedOrder?.selectedAddons && placedOrder.selectedAddons.length > 0
+      ? `\n*Add-ons:* ${placedOrder.selectedAddons.map((a) => `${a.name} (+₹${a.price})`).join(', ')}`
+      : '';
+
   // Pre-filled WhatsApp link with complete receipt & payment details
   const whatsappReceiptUrl = placedOrder
     ? `https://wa.me/${paymentWhatsapp}?text=${encodeURIComponent(
       placedOrder.paymentMethod === 'Cash on Delivery'
-        ? `Hello Pastry Paws! I just placed an order with *Cash on Delivery*:\n\n*Order ID:* ${placedOrder.orderId}\n*Item:* ${placedOrder.itemTitle} (${placedOrder.selectedSize})\n*Amount:* ${placedOrder.price}\n*Customer:* ${placedOrder.customerName} (${placedOrder.customerPhone})\n*Address:* ${placedOrder.deliveryAddress}\n*Delivery Date:* ${placedOrder.deliveryDate} (${placedOrder.deliveryTime})\n*Payment Method:* Cash on Delivery (Pay ${placedOrder.price} in cash upon delivery)\n\nPlease confirm my order. Thank you!`
-        : `Hello Pastry Paws! I just placed an order with UPI payment proof:\n\n*Order ID:* ${placedOrder.orderId}\n*Item:* ${placedOrder.itemTitle} (${placedOrder.selectedSize})\n*Amount:* ${placedOrder.price}\n*Customer:* ${placedOrder.customerName} (${placedOrder.customerPhone})\n*Address:* ${placedOrder.deliveryAddress}\n*Delivery Date:* ${placedOrder.deliveryDate} (${placedOrder.deliveryTime})\n*UPI UTR / Ref No:* ${placedOrder.transactionId}\n*Payment Status:* Verification Pending\n\nPlease verify my payment and confirm. Thank you!`
+        ? `Hello Pastry Paws! I just placed an order with *Cash on Delivery*:\n\n*Order ID:* ${placedOrder.orderId}\n*Item:* ${placedOrder.itemTitle} (${placedOrder.selectedSize})\n*Quantity:* ${placedOrder.quantity || 1}${whatsappAddonsSummary}\n*Total Bill:* ${placedOrder.price}\n*Customer:* ${placedOrder.customerName} (${placedOrder.customerPhone})\n*Address:* ${placedOrder.deliveryAddress}\n*Delivery Date:* ${placedOrder.deliveryDate} (${placedOrder.deliveryTime})\n*Payment Method:* Cash on Delivery (Pay ${placedOrder.price} in cash upon pickup/handover)\n\nPlease confirm my order. Thank you!`
+        : `Hello Pastry Paws! I just placed an order with UPI payment proof:\n\n*Order ID:* ${placedOrder.orderId}\n*Item:* ${placedOrder.itemTitle} (${placedOrder.selectedSize})\n*Quantity:* ${placedOrder.quantity || 1}${whatsappAddonsSummary}\n*Total Bill:* ${placedOrder.price}\n*Customer:* ${placedOrder.customerName} (${placedOrder.customerPhone})\n*Address:* ${placedOrder.deliveryAddress}\n*Delivery Date:* ${placedOrder.deliveryDate} (${placedOrder.deliveryTime})\n*UPI UTR / Ref No:* ${placedOrder.transactionId}\n*Payment Status:* Verification Pending\n\nPlease verify my payment and confirm. Thank you!`
     )}`
     : '#';
 
@@ -406,9 +457,32 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
                 {/* Order Summary Receipt */}
                 <div className="bg-[#FEEDDD]/50 rounded-2xl p-4 border border-[#D29C83]/25 text-left text-xs space-y-2">
                   <div className="flex justify-between pb-2 border-b border-[#D29C83]/20">
-                    <span className="text-[#A66D54]">Item & Portion:</span>
-                    <span className="font-semibold text-[#411C10]">{placedOrder.itemTitle} ({placedOrder.selectedSize})</span>
+                    <span className="text-[#A66D54]">Item &amp; Portion:</span>
+                    <span className="font-semibold text-[#411C10]">
+                      {placedOrder.itemTitle} ({placedOrder.selectedSize})
+                    </span>
                   </div>
+                  {placedOrder.quantity && placedOrder.quantity > 1 && (
+                    <div className="flex justify-between pb-2 border-b border-[#D29C83]/20">
+                      <span className="text-[#A66D54]">Quantity:</span>
+                      <span className="font-bold text-[#7C3F27]">
+                        {placedOrder.quantity} units
+                      </span>
+                    </div>
+                  )}
+                  {placedOrder.selectedAddons && placedOrder.selectedAddons.length > 0 && (
+                    <div className="pb-2 border-b border-[#D29C83]/20 space-y-1">
+                      <span className="text-[#A66D54] block">Selected Add-ons:</span>
+                      <div className="pl-2 space-y-0.5">
+                        {placedOrder.selectedAddons.map((addon, aIdx) => (
+                          <div key={aIdx} className="flex justify-between text-[11.5px] text-[#411C10]">
+                            <span>• {addon.name}</span>
+                            <span className="font-medium text-[#7C3F27]">+₹{addon.price}/- each</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <div className="flex justify-between pb-2 border-b border-[#D29C83]/20">
                     <span className="text-[#A66D54]">Payment Mode:</span>
                     <span className="font-semibold text-[#411C10]">
@@ -417,7 +491,7 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
                   </div>
                   <div className="flex justify-between pb-2 border-b border-[#D29C83]/20">
                     <span className="text-[#A66D54]">
-                      {placedOrder.paymentMethod === 'Cash on Delivery' ? 'Amount to Pay on Delivery:' : 'Amount Paid:'}
+                      {placedOrder.paymentMethod === 'Cash on Delivery' ? 'Total to Pay on Delivery:' : 'Total Amount Paid:'}
                     </span>
                     <span className="font-bold text-[#7C3F27] text-sm">{placedOrder.price}</span>
                   </div>
@@ -477,28 +551,157 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
             ) : modalStep === 'details' ? (
               /* SCREEN 2: STEP 1 - CUSTOMER & DELIVERY DETAILS */
               <form onSubmit={handleProceedToPayment} className="space-y-4">
-                {/* Selected Item Summary */}
-                <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-[#FEEDDD]/50 border border-[#D29C83]/30">
-                  <img
-                    src={item.image}
-                    alt={item.title}
-                    className="w-16 h-16 rounded-xl object-cover border border-[#D29C83]/30 shrink-0"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <span className="text-[10px] uppercase font-bold text-[#7C3F27] tracking-wider">
-                      {item.category}
-                    </span>
-                    <h4 className="font-serif text-base text-[#411C10] font-normal truncate">
-                      {item.title}
-                    </h4>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-[#FFF9F3] text-[#411C10] border border-[#D29C83]/30">
-                        {currentTier.size}
+                {/* Selected Item Summary & Quantity Selector */}
+                <div className="p-3.5 rounded-2xl bg-[#FEEDDD]/50 border border-[#D29C83]/30 space-y-3">
+                  <div className="flex items-center gap-3.5">
+                    <img
+                      src={item.image}
+                      alt={item.title}
+                      className="w-16 h-16 rounded-xl object-cover border border-[#D29C83]/30 shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-[10px] uppercase font-bold text-[#7C3F27] tracking-wider">
+                        {item.category}
                       </span>
-                      <span className="text-sm font-bold text-[#7C3F27]">
-                        {currentTier.price}
+                      <h4 className="font-serif text-base text-[#411C10] font-normal truncate">
+                        {item.title}
+                      </h4>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-[#FFF9F3] text-[#411C10] border border-[#D29C83]/30">
+                          {currentTier.size}
+                        </span>
+                        <span className="text-sm font-bold text-[#7C3F27]">
+                          {currentTier.price}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Quantity Selector Control */}
+                  <div className="pt-2.5 border-t border-[#D29C83]/25 flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-bold text-[#411C10] block">
+                        Order Quantity
+                      </span>
+                      <span className="text-[10px] text-[#A66D54]">
+                        Select number of portions / items
                       </span>
                     </div>
+
+                    <div className="flex items-center gap-1.5 bg-[#FFF9F3] border border-[#D29C83]/40 rounded-xl p-1 shadow-2xs">
+                      <button
+                        type="button"
+                        onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                        disabled={quantity <= 1}
+                        className="w-7 h-7 rounded-lg bg-[#FEEDDD] text-[#7C3F27] hover:bg-[#7C3F27] hover:text-[#FEEDDD] disabled:opacity-40 disabled:hover:bg-[#FEEDDD] disabled:hover:text-[#7C3F27] flex items-center justify-center font-bold text-base transition-colors cursor-pointer select-none"
+                        aria-label="Decrease quantity"
+                      >
+                        -
+                      </button>
+                      <span className="w-8 text-center font-bold text-sm text-[#411C10]">
+                        {quantity}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setQuantity((q) => Math.min(20, q + 1))}
+                        disabled={quantity >= 20}
+                        className="w-7 h-7 rounded-lg bg-[#FEEDDD] text-[#7C3F27] hover:bg-[#7C3F27] hover:text-[#FEEDDD] disabled:opacity-40 flex items-center justify-center font-bold text-base transition-colors cursor-pointer select-none"
+                        aria-label="Increase quantity"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Available Add-ons / Customization Options (if configured by Admin) */}
+                {item.addons && item.addons.length > 0 && (
+                  <div className="p-3.5 rounded-2xl bg-[#FFFDF9] border border-[#D29C83]/35 shadow-2xs space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <Sparkles className="w-4 h-4 text-[#E29578]" />
+                        <span className="text-xs font-bold text-[#411C10]">
+                          Available Add-ons &amp; Extras
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-[#A66D54] bg-[#FEEDDD] px-2 py-0.5 rounded-full font-medium">
+                        Optional
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-2">
+                      {item.addons.map((addon, aIdx) => {
+                        const isSelected = selectedAddons.some((a) => a.name === addon.name);
+                        return (
+                          <button
+                            key={aIdx}
+                            type="button"
+                            onClick={() => handleToggleAddon(addon)}
+                            className={`flex items-center justify-between p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                              isSelected
+                                ? 'bg-[#FEEDDD] border-[#7C3F27] shadow-xs ring-1 ring-[#7C3F27]'
+                                : 'bg-[#FFF9F3] border-[#D29C83]/30 hover:border-[#7C3F27]/50'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div
+                                className={`w-4 h-4 rounded-md border flex items-center justify-center shrink-0 ${
+                                  isSelected
+                                    ? 'border-[#7C3F27] bg-[#7C3F27] text-white'
+                                    : 'border-[#A66D54]/50 bg-white'
+                                }`}
+                              >
+                                {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                              </div>
+                              <span className="text-xs font-medium text-[#411C10] truncate">
+                                {addon.name}
+                              </span>
+                            </div>
+                            <span className="text-xs font-bold text-[#7C3F27] shrink-0 ml-2">
+                              +₹{addon.price}/-
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Live Bill Breakdown & Grand Total */}
+                <div className="p-3.5 rounded-2xl bg-[#FEEDDD]/60 border border-[#D29C83]/40 text-xs space-y-1.5">
+                  <div className="flex justify-between items-center text-[#6E4738]">
+                    <span>
+                      Item Subtotal ({currentTier.size} × {quantity}):
+                    </span>
+                    <span className="font-semibold text-[#411C10]">
+                      ₹{baseUnitPrice * quantity}/-
+                    </span>
+                  </div>
+
+                  {selectedAddons.length > 0 && (
+                    <div className="space-y-1 pt-1 border-t border-[#D29C83]/20">
+                      <span className="text-[11px] font-semibold text-[#7C3F27] block">
+                        Selected Add-ons:
+                      </span>
+                      {selectedAddons.map((addon, idx) => (
+                        <div
+                          key={idx}
+                          className="flex justify-between items-center text-[#6E4738] pl-2 text-[11.5px]"
+                        >
+                          <span className="truncate">
+                            • {addon.name} (₹{addon.price} × {quantity}):
+                          </span>
+                          <span className="font-medium text-[#7C3F27] shrink-0 ml-2">
+                            +₹{addon.price * quantity}/-
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="flex justify-between items-center pt-2 border-t border-[#D29C83]/30 text-sm font-bold text-[#411C10]">
+                    <span>Total Bill Payable:</span>
+                    <span className="text-[#7C3F27] text-base font-extrabold">{formattedTotal}</span>
                   </div>
                 </div>
 
@@ -720,7 +923,7 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
                     <div className="p-3 rounded-xl bg-amber-50 border border-amber-300 text-[11px] text-amber-950 flex items-start gap-2">
                       <span className="text-sm shrink-0">💵</span>
                       <p className="leading-relaxed">
-                        <strong>Cash on Delivery:</strong> No advance payment, QR scan, or screenshot upload required. You can directly place your order now and pay <strong>{currentTier.price}</strong> in cash upon pickup or delivery!
+                        <strong>Cash on Delivery:</strong> No advance payment, QR scan, or screenshot upload required. You can directly place your order now and pay <strong>{formattedTotal}</strong> in cash upon pickup or delivery!
                       </p>
                     </div>
                   )}
@@ -742,7 +945,7 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
                       ) : (
                         <>
                           <CheckCircle2 className="w-4 h-4 text-[#F9C8B5]" />
-                          <span>Place Order with Cash on Delivery ({currentTier.price})</span>
+                          <span>Place Order with Cash on Delivery ({formattedTotal})</span>
                         </>
                       )}
                     </button>
@@ -751,7 +954,7 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
                       type="submit"
                       className="w-full inline-flex items-center justify-center gap-2 bg-[#7C3F27] text-[#FEEDDD] hover:bg-[#5E2B19] py-3 px-5 rounded-2xl text-sm font-semibold tracking-wide transition-all shadow-md hover:shadow-lg active:scale-[0.98] cursor-pointer"
                     >
-                      <span>Continue to UPI Payment ({currentTier.price})</span>
+                      <span>Continue to UPI Payment ({formattedTotal})</span>
                       <ArrowRight className="w-4 h-4" />
                     </button>
                   )}
@@ -793,23 +996,39 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
                 </div>
 
                 {/* Amount to pay summary card */}
-                <div className="bg-[#FEEDDD]/60 border border-[#D29C83]/40 rounded-2xl p-3.5 flex items-center justify-between">
-                  <div>
-                    <span className="text-[10px] uppercase font-bold text-[#A66D54] tracking-wider block">
-                      Payable Amount
-                    </span>
-                    <h4 className="font-serif text-lg text-[#411C10] font-bold">
-                      {item.title} ({currentTier.size})
-                    </h4>
+                <div className="bg-[#FEEDDD]/60 border border-[#D29C83]/40 rounded-2xl p-3.5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-[#A66D54] tracking-wider block">
+                        Total Payable Amount
+                      </span>
+                      <h4 className="font-serif text-lg text-[#411C10] font-bold">
+                        {item.title} ({currentTier.size}) {quantity > 1 ? `× ${quantity}` : ''}
+                      </h4>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-xl font-serif font-bold text-[#7C3F27] block">
+                        {formattedTotal}
+                      </span>
+                      <span className="text-[10px] text-emerald-800 bg-emerald-100 font-semibold px-2 py-0.5 rounded-full border border-emerald-200">
+                        Zero convenience fees
+                      </span>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <span className="text-xl font-serif font-bold text-[#7C3F27] block">
-                      {currentTier.price}
-                    </span>
-                    <span className="text-[10px] text-emerald-800 bg-emerald-100 font-semibold px-2 py-0.5 rounded-full border border-emerald-200">
-                      Zero convenience fees
-                    </span>
-                  </div>
+
+                  {selectedAddons.length > 0 && (
+                    <div className="pt-2 border-t border-[#D29C83]/25 flex flex-wrap gap-1.5 items-center">
+                      <span className="text-[10px] font-semibold text-[#A66D54]">Add-ons:</span>
+                      {selectedAddons.map((a, i) => (
+                        <span
+                          key={i}
+                          className="text-[10px] font-semibold bg-[#FFF9F3] text-[#7C3F27] px-2 py-0.5 rounded-md border border-[#D29C83]/30"
+                        >
+                          +{a.name} (₹{a.price} × {quantity})
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* UPI QR & Payment Options Box */}
@@ -841,7 +1060,7 @@ export function OrderModal({ isOpen, onClose, item, selectedTier }) {
                             : 'bg-[#FEEDDD]/70 text-[#7C3F27] hover:bg-[#FEEDDD] border border-[#D29C83]/25'
                             }`}
                         >
-                          Exact Amount ({currentTier.price}) QR
+                          Exact Amount ({formattedTotal}) QR
                         </button>
                       </div>
                     )}

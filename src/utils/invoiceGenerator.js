@@ -794,7 +794,7 @@ export function generateOrderInvoiceHtml(order) {
       <table class="items-table">
         <thead>
           <tr>
-            <th style="width: 48%;">Item & Particulars</th>
+            <th style="width: 48%;">Item &amp; Particulars</th>
             <th style="width: 20%; text-align: center;">Portion / Size</th>
             <th style="width: 12%; text-align: center;">Qty</th>
             <th style="width: 20%; text-align: right;">Amount (INR)</th>
@@ -809,9 +809,26 @@ export function generateOrderInvoiceHtml(order) {
               </div>
             </td>
             <td style="text-align: center; font-weight: 700; color: #411C10;">${order.selectedSize || 'Standard'}</td>
-            <td style="text-align: center; font-weight: 600;">1</td>
-            <td style="text-align: right; font-weight: 700; color: #7C3F27; font-size: 14px;">${formattedPrice}</td>
+            <td style="text-align: center; font-weight: 600;">${order.quantity || 1}</td>
+            <td style="text-align: right; font-weight: 700; color: #7C3F27; font-size: 14px;">
+              ${order.selectedAddons && order.selectedAddons.length > 0 && order.addonsTotal
+                ? `₹${Math.max(0, numericPrice - order.addonsTotal).toFixed(2)}`
+                : formattedPrice}
+            </td>
           </tr>
+          ${order.selectedAddons && order.selectedAddons.length > 0
+            ? order.selectedAddons.map((addon) => `
+              <tr>
+                <td>
+                  <div class="item-title" style="font-size: 13px; color: #7C3F27;">+ ${addon.name}</div>
+                  <div class="item-subtitle">Artisan Add-on &amp; Customization</div>
+                </td>
+                <td style="text-align: center; font-size: 11px; color: #6E4738;">Extra</td>
+                <td style="text-align: center; font-weight: 600;">${order.quantity || 1}</td>
+                <td style="text-align: right; font-weight: 600; color: #7C3F27;">₹${(Number(addon.price) * (order.quantity || 1)).toFixed(2)}</td>
+              </tr>
+            `).join('')
+            : ''}
         </tbody>
       </table>
 
@@ -828,9 +845,17 @@ export function generateOrderInvoiceHtml(order) {
 
         <div class="totals-box">
           <div class="total-row">
-            <span>Item Subtotal:</span>
-            <span>${formattedPrice}</span>
+            <span>Base Subtotal:</span>
+            <span>${order.selectedAddons && order.selectedAddons.length > 0 && order.addonsTotal
+              ? `₹${Math.max(0, numericPrice - order.addonsTotal).toFixed(2)}`
+              : formattedPrice}</span>
           </div>
+          ${order.selectedAddons && order.selectedAddons.length > 0 ? `
+            <div class="total-row">
+              <span>Add-ons Subtotal:</span>
+              <span style="color: #7C3F27; font-weight: 600;">+₹${Number(order.addonsTotal || 0).toFixed(2)}</span>
+            </div>
+          ` : ''}
           <div class="total-row">
             <span>Artisan Packaging:</span>
             <span style="color: #2E7D32; font-weight: 700;">Complimentary (₹0.00)</span>
