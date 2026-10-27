@@ -173,11 +173,15 @@ export function MenuCard({ item, onOpenLightbox, onOrderNow, priority = false })
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                incrementItem(item, selectedTier);
+                if (onOpenLightbox) {
+                  onOpenLightbox(item);
+                } else if (onOrderNow) {
+                  onOrderNow(item, selectedTier);
+                }
               }}
               className="w-8 h-8 rounded-lg bg-[#7C3F27] text-[#FEEDDD] hover:bg-[#5E2B19] flex items-center justify-center transition-all cursor-pointer shadow-2xs active:scale-95"
-              aria-label={`Increase quantity of ${item.title}`}
-              title="Increase quantity"
+              aria-label={`Customize and add more ${item.title}`}
+              title="Customize portion & add-ons"
             >
               <Plus className="w-4 h-4 stroke-[2.5]" />
             </button>

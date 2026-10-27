@@ -195,9 +195,9 @@ export function CartDrawer() {
                       <span className="font-semibold text-[#411C10]">₹{cartSubtotal}/-</span>
                     </div>
                     <div className="flex justify-between items-center text-[11px]">
-                      <span>Artisan Box Packaging:</span>
+                      <span>Packaging:</span>
                       <span className="text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                        Complimentary (₹0)
+                        (₹0)
                       </span>
                     </div>
                     <div className="flex justify-between items-center text-sm font-bold text-[#411C10] pt-2 border-t border-[#D29C83]/25">

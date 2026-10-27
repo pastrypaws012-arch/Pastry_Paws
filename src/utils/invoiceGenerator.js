@@ -65,6 +65,28 @@ export function generateOrderInvoiceHtml(order) {
   const numericPrice = parseFloat(rawPriceStr) || 0;
   const formattedPrice = `₹${numericPrice.toFixed(2)}`;
 
+  // Itemized calculations for Cart multi-items or single item orders
+  const hasItems = Array.isArray(order.items) && order.items.length > 0;
+  let calculatedBaseSubtotal = 0;
+  let calculatedAddonsSubtotal = 0;
+
+  if (hasItems) {
+    order.items.forEach((it) => {
+      const itQty = it.quantity || 1;
+      const unit = Number(it.unitPrice) || 0;
+      calculatedBaseSubtotal += unit * itQty;
+
+      if (Array.isArray(it.selectedAddons)) {
+        it.selectedAddons.forEach((addon) => {
+          calculatedAddonsSubtotal += (Number(addon.price) || 0) * itQty;
+        });
+      }
+    });
+  } else {
+    calculatedAddonsSubtotal = Number(order.addonsTotal) || 0;
+    calculatedBaseSubtotal = Math.max(0, numericPrice - calculatedAddonsSubtotal);
+  }
+
   // Payment Status Styling
   const isCOD = order.paymentMethod === 'Cash on Delivery' || order.paymentMethod === 'COD';
   const paymentStatus = order.paymentStatus || (isCOD ? 'cod_pending' : 'pending_verification');
@@ -802,7 +824,7 @@ export function generateOrderInvoiceHtml(order) {
         </thead>
         <tbody>
           ${order.items && order.items.length > 0
-            ? order.items.map((it) => `
+      ? order.items.map((it) => `
               <tr>
                 <td>
                   <div class="item-title">${it.itemTitle}</div>
@@ -815,7 +837,7 @@ export function generateOrderInvoiceHtml(order) {
                 <td style="text-align: right; font-weight: 700; color: #7C3F27; font-size: 14px;">₹${((Number(it.unitPrice) || 0) * (it.quantity || 1)).toFixed(2)}</td>
               </tr>
               ${it.selectedAddons && it.selectedAddons.length > 0
-                ? it.selectedAddons.map((addon) => `
+          ? it.selectedAddons.map((addon) => `
                   <tr>
                     <td>
                       <div class="item-title" style="font-size: 13px; color: #7C3F27;">+ ${addon.name}</div>
@@ -826,9 +848,9 @@ export function generateOrderInvoiceHtml(order) {
                     <td style="text-align: right; font-weight: 600; color: #7C3F27;">₹${(Number(addon.price) * (it.quantity || 1)).toFixed(2)}</td>
                   </tr>
                 `).join('')
-                : ''}
+          : ''}
             `).join('')
-            : `
+      : `
               <tr>
                 <td>
                   <div class="item-title">${order.itemTitle}</div>
@@ -840,12 +862,12 @@ export function generateOrderInvoiceHtml(order) {
                 <td style="text-align: center; font-weight: 600;">${order.quantity || 1}</td>
                 <td style="text-align: right; font-weight: 700; color: #7C3F27; font-size: 14px;">
                   ${order.selectedAddons && order.selectedAddons.length > 0 && order.addonsTotal
-                    ? `₹${Math.max(0, numericPrice - order.addonsTotal).toFixed(2)}`
-                    : formattedPrice}
+        ? `₹${Math.max(0, numericPrice - order.addonsTotal).toFixed(2)}`
+        : formattedPrice}
                 </td>
               </tr>
               ${order.selectedAddons && order.selectedAddons.length > 0
-                ? order.selectedAddons.map((addon) => `
+        ? order.selectedAddons.map((addon) => `
                   <tr>
                     <td>
                       <div class="item-title" style="font-size: 13px; color: #7C3F27;">+ ${addon.name}</div>
@@ -856,7 +878,7 @@ export function generateOrderInvoiceHtml(order) {
                     <td style="text-align: right; font-weight: 600; color: #7C3F27;">₹${(Number(addon.price) * (order.quantity || 1)).toFixed(2)}</td>
                   </tr>
                 `).join('')
-                : ''}
+        : ''}
             `}
         </tbody>
       </table>
@@ -875,23 +897,21 @@ export function generateOrderInvoiceHtml(order) {
         <div class="totals-box">
           <div class="total-row">
             <span>Base Subtotal:</span>
-            <span>${order.selectedAddons && order.selectedAddons.length > 0 && order.addonsTotal
-              ? `₹${Math.max(0, numericPrice - order.addonsTotal).toFixed(2)}`
-              : formattedPrice}</span>
+            <span>₹${calculatedBaseSubtotal.toFixed(2)}</span>
           </div>
-          ${order.selectedAddons && order.selectedAddons.length > 0 ? `
+          ${calculatedAddonsSubtotal > 0 ? `
             <div class="total-row">
               <span>Add-ons Subtotal:</span>
-              <span style="color: #7C3F27; font-weight: 600;">+₹${Number(order.addonsTotal || 0).toFixed(2)}</span>
+              <span style="color: #7C3F27; font-weight: 600;">+₹${calculatedAddonsSubtotal.toFixed(2)}</span>
             </div>
           ` : ''}
           <div class="total-row">
-            <span>Artisan Packaging:</span>
-            <span style="color: #2E7D32; font-weight: 700;">Complimentary (₹0.00)</span>
+            <span>Packaging:</span>
+            <span style="color: #2E7D32; font-weight: 700;"> (₹0.00)</span>
           </div>
           <div class="total-row">
             <span>Studio Pickup / Handover:</span>
-            <span style="color: #2E7D32; font-weight: 700;">Complimentary (₹0.00)</span>
+            <span style="color: #2E7D32; font-weight: 700;"> (₹0.00)</span>
           </div>
           <div class="total-row">
             <span>GST / Taxes:</span>

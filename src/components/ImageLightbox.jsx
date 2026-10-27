@@ -220,13 +220,14 @@ export function ImageLightbox({
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                    <div className="flex flex-col gap-2">
                       {item.addons.map((addon, aIdx) => {
                         const isChecked = selectedAddons.some((a) => a.name === addon.name);
                         return (
-                          <button
+                          <div
                             key={aIdx}
-                            type="button"
+                            role="button"
+                            tabIndex={0}
                             onClick={() => {
                               if (isChecked) {
                                 setSelectedAddons(selectedAddons.filter((a) => a.name !== addon.name));
@@ -234,28 +235,40 @@ export function ImageLightbox({
                                 setSelectedAddons([...selectedAddons, addon]);
                               }
                             }}
-                            className={`flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs border text-left transition-all cursor-pointer ${
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                if (isChecked) {
+                                  setSelectedAddons(selectedAddons.filter((a) => a.name !== addon.name));
+                                } else {
+                                  setSelectedAddons([...selectedAddons, addon]);
+                                }
+                              }
+                            }}
+                            className={`flex items-center justify-between p-2.5 sm:p-3 rounded-xl text-xs sm:text-[13px] border text-left transition-all cursor-pointer select-none ${
                               isChecked
-                                ? 'bg-[#FFF9F3] border-[#7C3F27] text-[#411C10] font-semibold shadow-2xs'
-                                : 'bg-[#FEEDDD]/40 border-transparent hover:bg-[#FFF9F3]/60 text-[#7C3F27]'
+                                ? 'bg-[#FFF9F3] border-[#7C3F27] text-[#411C10] font-semibold shadow-xs'
+                                : 'bg-[#FEEDDD]/40 border-[#D29C83]/30 hover:bg-[#FFF9F3]/80 text-[#7C3F27]'
                             }`}
                           >
-                            <div className="flex items-center gap-1.5 truncate pr-1">
+                            <div className="flex items-center gap-2.5 min-w-0 pr-2">
                               <div
-                                className={`w-3.5 h-3.5 rounded flex items-center justify-center border ${
+                                className={`w-4 h-4 rounded-md flex items-center justify-center shrink-0 border transition-colors ${
                                   isChecked
                                     ? 'bg-[#7C3F27] border-[#7C3F27] text-white'
-                                    : 'border-[#D29C83]'
+                                    : 'border-[#D29C83] bg-white/80'
                                 }`}
                               >
-                                {isChecked && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                                {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
                               </div>
-                              <span className="truncate">{addon.name}</span>
+                              <span className="text-[#411C10] leading-snug font-medium break-words">
+                                {addon.name}
+                              </span>
                             </div>
-                            <span className="text-[#7C3F27] font-bold shrink-0">
+                            <span className="text-[#7C3F27] font-bold text-xs sm:text-[13px] shrink-0 whitespace-nowrap pl-2">
                               +₹{addon.price}/-
                             </span>
-                          </button>
+                          </div>
                         );
                       })}
                     </div>
