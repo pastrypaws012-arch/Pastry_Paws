@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { brandConfig } from '../data/brand';
-import { getCachedPaymentConfig } from '../utils/paymentConfig';
+import { getCachedPaymentConfig, fetchPaymentConfig } from '../utils/paymentConfig';
 import { printOrderInvoice } from '../utils/invoiceGenerator';
 import { WhatsAppIcon } from './Icons';
 import { API_BASE_URL } from '../utils/api';
@@ -53,7 +53,8 @@ export function CartCheckoutModal() {
   const [notes, setNotes] = useState('');
 
   // Payment settings
-  const [paymentConfig, setPaymentConfig] = useState(getCachedPaymentConfig());
+  const [paymentConfig, setPaymentConfig] = useState(getCachedPaymentConfig);
+  const [activeQrMode, setActiveQrMode] = useState('auto'); // 'auto' | 'custom' | 'dynamic'
   const [paymentMethod, setPaymentMethod] = useState('UPI'); // 'UPI' or 'COD'
   const [transactionId, setTransactionId] = useState('');
   const [screenshotFile, setScreenshotFile] = useState(null);
@@ -63,24 +64,15 @@ export function CartCheckoutModal() {
   // Success state
   const [placedOrder, setPlacedOrder] = useState(null);
 
-  // Fetch dynamic payment settings
+  // Fetch dynamic payment settings whenever checkout opens
   useEffect(() => {
     let isMounted = true;
-    async function loadConfig() {
-      try {
-        const res = await fetch(`${API_BASE_URL}/api/payment-config`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data && isMounted) {
-            setPaymentConfig(data);
-          }
-        }
-      } catch {
-        // Fallback to local default
-      }
-    }
     if (isCheckoutOpen) {
-      loadConfig();
+      fetchPaymentConfig().then((cfg) => {
+        if (cfg && isMounted) {
+          setPaymentConfig(cfg);
+        }
+      });
     }
     return () => {
       isMounted = false;
@@ -96,12 +88,21 @@ export function CartCheckoutModal() {
       setTransactionId('');
       setScreenshotFile(null);
       setScreenshotPreview('');
+      setActiveQrMode('auto');
     }
   }, [isCheckoutOpen]);
 
   const activeVpa = paymentConfig.upiId || brandConfig.payment?.upiId || 'pastrypaws@oksbi';
   const activePayee = paymentConfig.payeeName || brandConfig.payment?.payeeName || 'Pastry Paws';
   const paymentWhatsapp = paymentConfig.whatsappNumber || brandConfig.contact?.whatsappNumber || '919790983844';
+
+  const hasCustomQr = Boolean(paymentConfig.qrCodeImage);
+  const currentQrMode =
+    activeQrMode === 'auto'
+      ? hasCustomQr && paymentConfig.qrMode === 'custom'
+        ? 'custom'
+        : 'dynamic'
+      : activeQrMode;
 
   const upiDeepLink = `upi://pay?pa=${encodeURIComponent(activeVpa)}&pn=${encodeURIComponent(
     activePayee
@@ -112,6 +113,11 @@ export function CartCheckoutModal() {
   const dynamicQrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(
     upiDeepLink
   )}&bgcolor=FFF9F3&color=411C10&qzone=1`;
+
+  const activeQrImageUrl =
+    currentQrMode === 'custom' && hasCustomQr
+      ? paymentConfig.qrCodeImage
+      : dynamicQrCodeUrl;
 
   const handleCopyVpa = async () => {
     try {
@@ -545,16 +551,44 @@ export function CartCheckoutModal() {
               {/* UPI Tab */}
               {paymentMethod === 'UPI' ? (
                 <div className="space-y-4">
+                  {/* QR Mode Switcher if Admin has uploaded custom standee QR */}
+                  {hasCustomQr && (
+                    <div className="flex items-center justify-center gap-1.5 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setActiveQrMode('custom')}
+                        className={`text-[11px] font-semibold px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
+                          currentQrMode === 'custom'
+                            ? 'bg-[#7C3F27] text-[#FEEDDD] shadow-2xs font-bold'
+                            : 'bg-[#FEEDDD]/70 text-[#7C3F27] hover:bg-[#FEEDDD] border border-[#D29C83]/30'
+                        }`}
+                      >
+                        Bakery Standee QR
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveQrMode('dynamic')}
+                        className={`text-[11px] font-semibold px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
+                          currentQrMode === 'dynamic'
+                            ? 'bg-[#7C3F27] text-[#FEEDDD] shadow-2xs font-bold'
+                            : 'bg-[#FEEDDD]/70 text-[#7C3F27] hover:bg-[#FEEDDD] border border-[#D29C83]/30'
+                        }`}
+                      >
+                        Exact Amount (₹{cartSubtotal}/-)
+                      </button>
+                    </div>
+                  )}
+
                   {/* QR Code and VPA Card */}
                   <div className="p-4 rounded-2xl bg-[#FEEDDD]/60 border border-[#D29C83]/35 flex flex-col sm:flex-row items-center gap-4">
-                    <div className="p-2 bg-[#FFF9F3] rounded-xl border border-[#D29C83]/40 shadow-xs shrink-0">
+                    <div className="p-2.5 bg-[#FFF9F3] rounded-2xl border-2 border-[#D29C83]/40 shadow-xs shrink-0 flex flex-col items-center">
                       <img
-                        src={dynamicQrCodeUrl}
+                        src={activeQrImageUrl}
                         alt="UPI Payment QR Code"
-                        className="w-36 h-36 object-contain rounded-lg"
+                        className="w-36 h-36 sm:w-40 sm:h-40 object-contain rounded-xl bg-white p-1"
                       />
-                      <p className="text-[9px] text-center font-bold text-[#7C3F27] mt-1">
-                        Scan with GPay / PhonePe
+                      <p className="text-[10px] text-center font-bold text-[#7C3F27] mt-1.5">
+                        {currentQrMode === 'custom' ? 'Bakery Standee QR' : 'Scan with GPay / PhonePe'}
                       </p>
                     </div>
 
