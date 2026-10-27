@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { SectionHeading } from '../components/SectionHeading';
 import { ArrowUpRight, ShoppingBag, Sparkles, Expand } from 'lucide-react';
-import { WhatsAppIcon } from '../components/Icons';
 import { brandConfig } from '../data/brand';
 import { API_BASE_URL } from '../utils/api';
 
@@ -92,9 +91,6 @@ export function Specialties() {
         >
           {offerings.map((spec, index) => {
             const orderLink = getOfferingOrderLink(spec);
-            const whatsappUrl = `https://wa.me/${brandConfig.contact.whatsappNumber}?text=${encodeURIComponent(
-              `Hello Pastry Paws! I am interested in your specialty offering "${spec.title}". Could you please share more details or availability?`
-            )}`;
 
             return (
               <div
@@ -176,28 +172,17 @@ export function Specialties() {
                   </div>
                 </Link>
 
-                {/* Fancy Action Footer: Primary "Order Now" Button + Edge Circular WhatsApp (MenuCard Style) */}
+                {/* Fancy Action Footer: Primary "Order Now" Button */}
                 <div className="p-3.5 sm:p-4 pt-0">
-                  <div className="pt-2.5 border-t border-[#D29C83]/20 flex items-center gap-2">
+                  <div className="pt-2.5 border-t border-[#D29C83]/20">
                     <Link
                       to={orderLink}
-                      className="flex-1 inline-flex items-center justify-center gap-1.5 bg-[#7C3F27] text-[#FEEDDD] hover:bg-[#5E2B19] py-2 px-3 rounded-xl text-xs font-semibold tracking-wide transition-all shadow-2xs hover:shadow active:scale-[0.98]"
+                      className="w-full inline-flex items-center justify-center gap-1.5 bg-[#7C3F27] text-[#FEEDDD] hover:bg-[#5E2B19] py-2 px-3 rounded-xl text-xs font-semibold tracking-wide transition-all shadow-2xs hover:shadow active:scale-[0.98]"
                     >
                       <ShoppingBag className="w-3.5 h-3.5 text-[#F9C8B5] shrink-0" />
                       <span>Order Now</span>
                       <ArrowUpRight className="w-3 h-3 transition-transform" />
                     </Link>
-
-                    <a
-                      href={whatsappUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      title={`Enquire about "${spec.title}" on WhatsApp`}
-                      className="shrink-0 w-8 h-8 rounded-full bg-[#25D366]/15 hover:bg-[#25D366] text-[#128C7E] hover:text-white border border-[#25D366]/35 flex items-center justify-center transition-all duration-200 shadow-2xs hover:scale-105 active:scale-95 cursor-pointer"
-                      aria-label={`Enquire about ${spec.title} on WhatsApp`}
-                    >
-                      <WhatsAppIcon className="w-4 h-4" />
-                    </a>
                   </div>
                 </div>
               </div>

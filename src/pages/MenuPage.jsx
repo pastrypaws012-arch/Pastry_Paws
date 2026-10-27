@@ -152,7 +152,9 @@ export function MenuPage() {
 
   // Lightbox navigation helpers
   const handleOpenLightbox = (item) => {
-    const idx = filteredItems.findIndex((i) => i.id === item.id);
+    const idx = filteredItems.findIndex(
+      (i) => (i.id && i.id === item.id) || (i._id && i._id === item._id) || i.title === item.title
+    );
     setActiveLightboxIndex(idx !== -1 ? idx : 0);
   };
 
@@ -523,9 +525,7 @@ export function MenuPage() {
                   item={item}
                   priority={index < 4}
                   onOpenLightbox={() => handleOpenLightbox(item)}
-                  onOrderNow={(selectedItem, selectedTier) =>
-                    setOrderModal({ isOpen: true, item: selectedItem, tier: selectedTier })
-                  }
+                  onOrderNow={() => handleOpenLightbox(item)}
                 />
               ))}
             </AnimatePresence>
