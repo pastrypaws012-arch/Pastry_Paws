@@ -8,7 +8,9 @@ export function CartProvider({ children }) {
   const [cartItems, setCartItems] = useState(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
-      return saved ? JSON.parse(saved) : [];
+      if (!saved) return [];
+      const parsed = JSON.parse(saved);
+      return Array.isArray(parsed) ? parsed : [];
     } catch {
       return [];
     }
@@ -133,6 +135,13 @@ export function CartProvider({ children }) {
   };
 
   /**
+   * Clear all items from cart
+   */
+  const clearCart = () => {
+    setCartItems([]);
+  };
+
+  /**
    * Helper to get total quantity of an item currently in the cart
    */
   const getItemQuantity = (itemOrId) => {
@@ -193,8 +202,12 @@ export function CartProvider({ children }) {
     }
   };
 
-  const totalItemsCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
-  const cartSubtotal = cartItems.reduce((sum, item) => sum + item.itemTotal, 0);
+  const totalItemsCount = Array.isArray(cartItems)
+    ? cartItems.reduce((sum, item) => sum + (Number(item?.quantity) || 0), 0)
+    : 0;
+  const cartSubtotal = Array.isArray(cartItems)
+    ? cartItems.reduce((sum, item) => sum + (Number(item?.itemTotal) || 0), 0)
+    : 0;
 
   const openCart = () => setIsCartOpen(true);
   const closeCart = () => setIsCartOpen(false);
