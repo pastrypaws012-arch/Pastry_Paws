@@ -17,6 +17,8 @@ import {
   RotateCcw,
   Flame,
   ArrowUpDown,
+  ShoppingBag,
+  ArrowRight,
 } from 'lucide-react';
 import { brandConfig } from '../data/brand';
 import { MenuCard } from '../components/MenuCard';
@@ -24,8 +26,10 @@ import { ImageLightbox } from '../components/ImageLightbox';
 import { OrderModal } from '../components/OrderModal';
 import { AnimatedScriptWord } from '../components/AnimatedUnderline';
 import { API_BASE_URL } from '../utils/api';
+import { useCart } from '../context/CartContext';
 
 export function MenuPage() {
+  const { totalItemsCount, cartSubtotal, openCart } = useCart();
   const [searchParams] = useSearchParams();
   const initialCategory = searchParams.get('category') || 'All';
 
@@ -399,10 +403,22 @@ export function MenuPage() {
             </div>
 
             {/* Results count & reset */}
-            <div className="flex items-center gap-3 ml-auto text-xs text-[#7C3F27]">
+            <div className="flex items-center gap-2.5 ml-auto text-xs text-[#7C3F27]">
               <span>
                 Showing <strong className="text-[#411C10]">{filteredItems.length}</strong> bakes
               </span>
+
+              {/* Menu Page Cart Trigger */}
+              <button
+                type="button"
+                onClick={openCart}
+                className="inline-flex items-center gap-1.5 bg-[#7C3F27] hover:bg-[#5E2B19] text-[#FEEDDD] px-3 py-1.5 rounded-full text-xs font-semibold shadow-2xs hover:shadow transition-all cursor-pointer"
+                title="View your sweet cart"
+              >
+                <ShoppingBag className="w-3.5 h-3.5 text-[#F9C8B5]" />
+                <span>Cart{totalItemsCount > 0 ? ` (${totalItemsCount} • ₹${cartSubtotal})` : ''}</span>
+              </button>
+
               {(selectedCategory !== 'All' ||
                 searchQuery ||
                 priceRange !== 'all' ||
@@ -416,7 +432,7 @@ export function MenuPage() {
                     className="inline-flex items-center gap-1 text-xs text-[#7C3F27] font-semibold underline hover:text-[#411C10] cursor-pointer"
                   >
                     <RotateCcw className="w-3 h-3" />
-                    <span>Reset filters</span>
+                    <span>Reset</span>
                   </button>
                 )}
             </div>
@@ -580,6 +596,44 @@ export function MenuPage() {
           </div>
         </section>
       </main>
+
+      {/* Floating Bottom Cart Bar (Sticky when cart has items) */}
+      <AnimatePresence>
+        {totalItemsCount > 0 && (
+          <motion.aside
+            aria-label="Shopping Cart Summary"
+            initial={{ y: 50, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 50, opacity: 0 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[92%] max-w-md pointer-events-auto"
+          >
+            <div className="bg-[#411C10]/95 backdrop-blur-md text-[#FFF9F3] p-3 px-4 rounded-2xl shadow-2xl border border-[#D29C83]/40 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-full bg-[#7C3F27] text-[#FEEDDD] flex items-center justify-center font-bold text-xs shadow-inner">
+                  {totalItemsCount}
+                </div>
+                <div>
+                  <p className="text-xs font-bold leading-tight">
+                    {totalItemsCount} {totalItemsCount === 1 ? 'Treat' : 'Treats'} in Cart
+                  </p>
+                  <p className="text-[11px] text-[#F9C8B5]">
+                    Total: ₹{cartSubtotal}/-
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={openCart}
+                className="inline-flex items-center gap-1.5 bg-[#FEEDDD] hover:bg-[#FEE5D2] text-[#7C3F27] font-semibold text-xs px-3.5 py-2 rounded-xl transition-all shadow-xs cursor-pointer active:scale-95"
+              >
+                <span>View Cart &amp; Pay</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </motion.aside>
+        )}
+      </AnimatePresence>
 
       {/* Lightbox Modal */}
       <ImageLightbox

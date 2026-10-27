@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, MessageCircle, MapPin } from 'lucide-react';
+import { Menu, MessageCircle, MapPin, ShoppingBag } from 'lucide-react';
 import { brandConfig } from '../data/brand';
 import { MobileMenu } from './MobileMenu';
 import { InstagramIcon } from './Icons';
+import { useCart } from '../context/CartContext';
 
 export function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const { totalItemsCount, openCart } = useCart();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -136,6 +138,22 @@ export function Navbar() {
                 <MessageCircle className="w-3.5 h-3.5 text-[#F9C8B5]" />
                 <span className="whitespace-nowrap">Inquire on WhatsApp</span>
               </a>
+
+              {/* Sweet Cart Trigger Button */}
+              <button
+                type="button"
+                onClick={openCart}
+                className="relative inline-flex items-center gap-1.5 bg-[#FFF9F3] hover:bg-[#FEE5D2] text-[#7C3F27] border border-[#D29C83]/50 px-3.5 py-2 rounded-full text-xs font-semibold shadow-2xs hover:shadow transition-all cursor-pointer shrink-0"
+                aria-label={`Open shopping cart with ${totalItemsCount} items`}
+              >
+                <ShoppingBag className="w-4 h-4 text-[#7C3F27]" />
+                <span className="hidden sm:inline">Cart</span>
+                {totalItemsCount > 0 && (
+                  <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-[#7C3F27] text-[#FEEDDD] text-[10px] font-bold rounded-full">
+                    {totalItemsCount}
+                  </span>
+                )}
+              </button>
 
               {/* Mobile Menu Button */}
               <button

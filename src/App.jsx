@@ -8,14 +8,18 @@ import { MenuPage } from './pages/MenuPage';
 import { TrackOrderPage } from './pages/TrackOrderPage';
 import { AdminPage } from './pages/AdminPage';
 import { FloatingTrackButton } from './components/FloatingTrackButton';
+import { CartProvider } from './context/CartContext';
+import { CartDrawer } from './components/CartDrawer';
+import { CartCheckoutModal } from './components/CartCheckoutModal';
 
 function App() {
   return (
-    <BrowserRouter basename={import.meta.env.BASE_URL}>
-      <ScrollToTop />
-      <div className="min-h-screen bg-[#FEEDDD] text-[#411C10] selection:bg-[#F7B6A7] selection:text-[#411C10] font-sans antialiased overflow-x-hidden flex flex-col">
-        {/* Dynamic Route Pages */}
-        <main className="flex-grow">
+    <CartProvider>
+      <BrowserRouter basename={import.meta.env.BASE_URL}>
+        <ScrollToTop />
+        <div className="min-h-screen bg-[#FEEDDD] text-[#411C10] selection:bg-[#F7B6A7] selection:text-[#411C10] font-sans antialiased overflow-x-hidden flex flex-col">
+          {/* Dynamic Route Pages */}
+          <main className="flex-grow">
           <Routes>
             <Route
               path="/"
@@ -82,8 +86,15 @@ function App() {
         </main>
         {/* Floating Quick Track Button */}
         <FloatingTrackButton />
-      </div>
-    </BrowserRouter>
+
+          {/* Global Cart Slide-over Drawer */}
+          <CartDrawer />
+
+          {/* Global Cart Checkout Modal */}
+          <CartCheckoutModal />
+        </div>
+      </BrowserRouter>
+    </CartProvider>
   );
 }
 

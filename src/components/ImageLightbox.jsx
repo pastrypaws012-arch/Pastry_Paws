@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, ChevronLeft, ChevronRight, MessageCircle, ShoppingBag, Check } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, ShoppingBag, Check, Plus, Minus, ShoppingCart, Sparkles } from 'lucide-react';
 import { WhatsAppIcon } from './Icons';
 import { brandConfig } from '../data/brand';
+import { useCart } from '../context/CartContext';
 
 export function ImageLightbox({
   isOpen,
@@ -13,7 +14,11 @@ export function ImageLightbox({
   onNext,
   onOrderNow,
 }) {
+  const { addToCart, openCart, openCheckout } = useCart();
   const [selectedSize, setSelectedSize] = useState('');
+  const [quantity, setQuantity] = useState(1);
+  const [selectedAddons, setSelectedAddons] = useState([]);
+  const [addedToast, setAddedToast] = useState(false);
 
   useEffect(() => {
     if (item?.pricingDetails && item.pricingDetails.length > 0) {
@@ -21,6 +26,9 @@ export function ImageLightbox({
     } else {
       setSelectedSize('');
     }
+    setQuantity(1);
+    setSelectedAddons([]);
+    setAddedToast(false);
   }, [item]);
 
   const selectedTier =
@@ -29,6 +37,12 @@ export function ImageLightbox({
       size: 'Standard',
       price: item?.startingPrice ? `₹${item.startingPrice}/-` : '₹299/-',
     };
+
+  const baseUnitPrice =
+    parseFloat(String(selectedTier.price).replace(/[^0-9.]/g, '')) || item?.startingPrice || 0;
+  const addonsUnitTotal = selectedAddons.reduce((sum, a) => sum + (Number(a.price) || 0), 0);
+  const singleItemTotal = baseUnitPrice + addonsUnitTotal;
+  const grandTotal = singleItemTotal * quantity;
   const handleKeyDown = useCallback(
     (e) => {
       if (!isOpen) return;
@@ -191,16 +205,98 @@ export function ImageLightbox({
                         * Small cupcake: min 10 pieces | Medium & large: min 8 pieces
                       </p>
                     )}
-                    {item.category === 'Brownie' && (
-                      <p className="text-[11px] text-[#A66D54] mt-2 italic">
-                        * Extra chocolate add-on: +₹30/-
-                      </p>
-                    )}
                   </div>
                 )}
 
+                {/* Optional Add-ons Selection */}
+                {item.addons && item.addons.length > 0 && (
+                  <div className="mt-4 p-3.5 rounded-xl bg-[#FEEDDD]/60 border border-[#D29C83]/30">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-bold tracking-wider uppercase text-[#7C3F27]">
+                        Customize with Add-ons
+                      </span>
+                      <span className="text-[10px] text-[#A66D54] uppercase font-semibold">
+                        Optional Extras
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                      {item.addons.map((addon, aIdx) => {
+                        const isChecked = selectedAddons.some((a) => a.name === addon.name);
+                        return (
+                          <button
+                            key={aIdx}
+                            type="button"
+                            onClick={() => {
+                              if (isChecked) {
+                                setSelectedAddons(selectedAddons.filter((a) => a.name !== addon.name));
+                              } else {
+                                setSelectedAddons([...selectedAddons, addon]);
+                              }
+                            }}
+                            className={`flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs border text-left transition-all cursor-pointer ${
+                              isChecked
+                                ? 'bg-[#FFF9F3] border-[#7C3F27] text-[#411C10] font-semibold shadow-2xs'
+                                : 'bg-[#FEEDDD]/40 border-transparent hover:bg-[#FFF9F3]/60 text-[#7C3F27]'
+                            }`}
+                          >
+                            <div className="flex items-center gap-1.5 truncate pr-1">
+                              <div
+                                className={`w-3.5 h-3.5 rounded flex items-center justify-center border ${
+                                  isChecked
+                                    ? 'bg-[#7C3F27] border-[#7C3F27] text-white'
+                                    : 'border-[#D29C83]'
+                                }`}
+                              >
+                                {isChecked && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                              </div>
+                              <span className="truncate">{addon.name}</span>
+                            </div>
+                            <span className="text-[#7C3F27] font-bold shrink-0">
+                              +₹{addon.price}/-
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Quantity and Portion Total Bar */}
+                <div className="mt-4 p-3 rounded-xl bg-[#FEEDDD]/40 border border-[#D29C83]/25 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-[#411C10]">Quantity:</span>
+                    <div className="flex items-center bg-[#FFF9F3] rounded-lg border border-[#D29C83]/40 p-0.5 shadow-2xs">
+                      <button
+                        type="button"
+                        onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                        className="w-6 h-6 rounded flex items-center justify-center text-[#7C3F27] hover:bg-[#FEEDDD] transition-colors cursor-pointer"
+                        title="Decrease quantity"
+                      >
+                        <Minus className="w-3 h-3" />
+                      </button>
+                      <span className="w-7 text-center text-xs font-bold text-[#411C10]">
+                        {quantity}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setQuantity(quantity + 1)}
+                        className="w-6 h-6 rounded flex items-center justify-center text-[#7C3F27] hover:bg-[#FEEDDD] transition-colors cursor-pointer"
+                        title="Increase quantity"
+                      >
+                        <Plus className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="text-right">
+                    <span className="text-[10px] text-[#A66D54] block leading-none">Total:</span>
+                    <span className="text-sm font-bold text-[#7C3F27]">₹{grandTotal}/-</span>
+                  </div>
+                </div>
+
                 {item.tags && item.tags.length > 0 && (
-                  <div className="mt-5 pt-4 border-t border-[#D29C83]/20">
+                  <div className="mt-4 pt-3 border-t border-[#D29C83]/20">
                     <p className="text-xs font-semibold tracking-wider uppercase text-[#A66D54] mb-2">
                       Highlights
                     </p>
@@ -218,21 +314,59 @@ export function ImageLightbox({
                 )}
               </div>
 
-              {/* Order Now & WhatsApp Inquiry CTAs */}
-              <div className="mt-6 pt-5 border-t border-[#D29C83]/20 space-y-2.5">
-                <div className="flex items-center gap-2.5">
+              {/* Added to Cart Feedback Toast */}
+              {addedToast && (
+                <div className="mt-3 p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center justify-between animate-fade-in">
+                  <span className="flex items-center gap-1.5 font-medium">
+                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    Added to your cart!
+                  </span>
                   <button
                     type="button"
                     onClick={() => {
-                      onOrderNow?.(item, selectedTier);
                       onClose?.();
+                      openCart();
                     }}
-                    className="flex-1 inline-flex items-center justify-center gap-2 bg-[#7C3F27] text-[#FEEDDD] hover:bg-[#5E2B19] py-3 px-5 rounded-2xl text-xs sm:text-sm font-semibold tracking-wide transition-all shadow-md hover:shadow-lg active:scale-[0.98] cursor-pointer"
+                    className="font-bold underline text-emerald-900 cursor-pointer"
                   >
-                    <ShoppingBag className="w-4 h-4 text-[#F9C8B5] shrink-0" />
-                    <span>Order Now ({selectedTier.price})</span>
+                    View Cart →
+                  </button>
+                </div>
+              )}
+
+              {/* CTAs: Add to Cart, Buy Now, and WhatsApp */}
+              <div className="mt-5 pt-4 border-t border-[#D29C83]/20 space-y-2.5">
+                <div className="flex items-center gap-2">
+                  {/* Add to Cart (Primary) */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      addToCart(item, selectedTier, quantity, selectedAddons);
+                      setAddedToast(true);
+                      setTimeout(() => setAddedToast(false), 3500);
+                    }}
+                    className="flex-1 inline-flex items-center justify-center gap-2 bg-[#7C3F27] text-[#FEEDDD] hover:bg-[#5E2B19] py-3 px-4 rounded-2xl text-xs sm:text-sm font-semibold tracking-wide transition-all shadow-md hover:shadow-lg active:scale-[0.98] cursor-pointer"
+                  >
+                    <ShoppingCart className="w-4 h-4 text-[#F9C8B5] shrink-0" />
+                    <span>Add to Cart (₹{grandTotal}/-)</span>
                   </button>
 
+                  {/* Buy Now (Opens Checkout directly) */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      addToCart(item, selectedTier, quantity, selectedAddons);
+                      onClose?.();
+                      openCheckout();
+                    }}
+                    className="inline-flex items-center justify-center gap-1.5 bg-[#FEEDDD] text-[#7C3F27] hover:bg-[#FEE5D2] border border-[#D29C83]/50 py-3 px-3.5 rounded-2xl text-xs font-semibold tracking-wide transition-all shadow-2xs hover:shadow active:scale-[0.98] cursor-pointer"
+                    title="Checkout immediately"
+                  >
+                    <ShoppingBag className="w-4 h-4 text-[#7C3F27]" />
+                    <span className="hidden sm:inline">Buy Now</span>
+                  </button>
+
+                  {/* WhatsApp Inquiry */}
                   <a
                     href={whatsappInquiryUrl}
                     target="_blank"

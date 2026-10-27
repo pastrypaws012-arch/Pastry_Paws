@@ -801,34 +801,63 @@ export function generateOrderInvoiceHtml(order) {
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <td>
-              <div class="item-title">${order.itemTitle}</div>
-              <div class="item-subtitle">
-                ${order.category ? `Category: ${order.category} • ` : ''}100% Handcrafted Artisan Studio Recipe
-              </div>
-            </td>
-            <td style="text-align: center; font-weight: 700; color: #411C10;">${order.selectedSize || 'Standard'}</td>
-            <td style="text-align: center; font-weight: 600;">${order.quantity || 1}</td>
-            <td style="text-align: right; font-weight: 700; color: #7C3F27; font-size: 14px;">
-              ${order.selectedAddons && order.selectedAddons.length > 0 && order.addonsTotal
-                ? `₹${Math.max(0, numericPrice - order.addonsTotal).toFixed(2)}`
-                : formattedPrice}
-            </td>
-          </tr>
-          ${order.selectedAddons && order.selectedAddons.length > 0
-            ? order.selectedAddons.map((addon) => `
+          ${order.items && order.items.length > 0
+            ? order.items.map((it) => `
               <tr>
                 <td>
-                  <div class="item-title" style="font-size: 13px; color: #7C3F27;">+ ${addon.name}</div>
-                  <div class="item-subtitle">Artisan Add-on &amp; Customization</div>
+                  <div class="item-title">${it.itemTitle}</div>
+                  <div class="item-subtitle">
+                    ${it.category ? `Category: ${it.category} • ` : ''}100% Handcrafted Artisan Studio Recipe
+                  </div>
                 </td>
-                <td style="text-align: center; font-size: 11px; color: #6E4738;">Extra</td>
-                <td style="text-align: center; font-weight: 600;">${order.quantity || 1}</td>
-                <td style="text-align: right; font-weight: 600; color: #7C3F27;">₹${(Number(addon.price) * (order.quantity || 1)).toFixed(2)}</td>
+                <td style="text-align: center; font-weight: 700; color: #411C10;">${it.selectedSize || 'Standard'}</td>
+                <td style="text-align: center; font-weight: 600;">${it.quantity || 1}</td>
+                <td style="text-align: right; font-weight: 700; color: #7C3F27; font-size: 14px;">₹${((Number(it.unitPrice) || 0) * (it.quantity || 1)).toFixed(2)}</td>
               </tr>
+              ${it.selectedAddons && it.selectedAddons.length > 0
+                ? it.selectedAddons.map((addon) => `
+                  <tr>
+                    <td>
+                      <div class="item-title" style="font-size: 13px; color: #7C3F27;">+ ${addon.name}</div>
+                      <div class="item-subtitle">Artisan Add-on &amp; Customization (${it.itemTitle})</div>
+                    </td>
+                    <td style="text-align: center; font-size: 11px; color: #6E4738;">Extra</td>
+                    <td style="text-align: center; font-weight: 600;">${it.quantity || 1}</td>
+                    <td style="text-align: right; font-weight: 600; color: #7C3F27;">₹${(Number(addon.price) * (it.quantity || 1)).toFixed(2)}</td>
+                  </tr>
+                `).join('')
+                : ''}
             `).join('')
-            : ''}
+            : `
+              <tr>
+                <td>
+                  <div class="item-title">${order.itemTitle}</div>
+                  <div class="item-subtitle">
+                    ${order.category ? `Category: ${order.category} • ` : ''}100% Handcrafted Artisan Studio Recipe
+                  </div>
+                </td>
+                <td style="text-align: center; font-weight: 700; color: #411C10;">${order.selectedSize || 'Standard'}</td>
+                <td style="text-align: center; font-weight: 600;">${order.quantity || 1}</td>
+                <td style="text-align: right; font-weight: 700; color: #7C3F27; font-size: 14px;">
+                  ${order.selectedAddons && order.selectedAddons.length > 0 && order.addonsTotal
+                    ? `₹${Math.max(0, numericPrice - order.addonsTotal).toFixed(2)}`
+                    : formattedPrice}
+                </td>
+              </tr>
+              ${order.selectedAddons && order.selectedAddons.length > 0
+                ? order.selectedAddons.map((addon) => `
+                  <tr>
+                    <td>
+                      <div class="item-title" style="font-size: 13px; color: #7C3F27;">+ ${addon.name}</div>
+                      <div class="item-subtitle">Artisan Add-on &amp; Customization</div>
+                    </td>
+                    <td style="text-align: center; font-size: 11px; color: #6E4738;">Extra</td>
+                    <td style="text-align: center; font-weight: 600;">${order.quantity || 1}</td>
+                    <td style="text-align: right; font-weight: 600; color: #7C3F27;">₹${(Number(addon.price) * (order.quantity || 1)).toFixed(2)}</td>
+                  </tr>
+                `).join('')
+                : ''}
+            `}
         </tbody>
       </table>
 

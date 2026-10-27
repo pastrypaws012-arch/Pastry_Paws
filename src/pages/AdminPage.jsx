@@ -2573,31 +2573,61 @@ export function AdminPage() {
                         </span>
                       </div>
 
-                      <h4 className="font-serif text-base text-[#411C10] leading-snug flex items-center flex-wrap gap-1.5">
-                        <span>{ord.itemTitle} ({ord.selectedSize})</span>
-                        {ord.quantity && ord.quantity > 1 && (
-                          <span className="text-[11px] font-sans font-bold bg-[#7C3F27] text-[#FEEDDD] px-2 py-0.5 rounded-full">
-                            ×{ord.quantity}
-                          </span>
-                        )}
-                      </h4>
-                      <div className="text-sm font-bold text-[#7C3F27] mt-0.5">
-                        {ord.price}
-                      </div>
-
-                      {/* Selected Add-ons Display */}
-                      {ord.selectedAddons && ord.selectedAddons.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-1.5">
-                          {ord.selectedAddons.map((addon, aIdx) => (
-                            <span
-                              key={aIdx}
-                              className="inline-flex items-center gap-1 text-[10.5px] font-semibold bg-[#FEEDDD] text-[#7C3F27] px-2 py-0.5 rounded-md border border-[#D29C83]/30"
-                            >
-                              <span>+ {addon.name}</span>
-                              <span className="opacity-75 font-normal">(₹{addon.price}/-)</span>
-                            </span>
+                      {ord.items && ord.items.length > 0 ? (
+                        <div className="mt-2 p-2.5 rounded-xl bg-[#FEEDDD]/40 border border-[#D29C83]/30 space-y-1.5">
+                          <div className="flex items-center justify-between text-[10px] font-bold uppercase text-[#A66D54] tracking-wider">
+                            <span>Cart Items ({ord.items.length})</span>
+                            <span className="text-[#7C3F27] text-xs font-bold">{ord.price}</span>
+                          </div>
+                          {ord.items.map((it, idx) => (
+                            <div key={idx} className="text-xs border-b border-[#D29C83]/15 last:border-0 pb-1.5 last:pb-0">
+                              <div className="flex justify-between font-medium text-[#411C10]">
+                                <span>
+                                  {it.itemTitle} <span className="text-[#7C3F27] font-semibold">({it.selectedSize}) × {it.quantity}</span>
+                                </span>
+                                <span className="font-bold text-[#7C3F27]">₹{it.itemTotal}/-</span>
+                              </div>
+                              {it.selectedAddons && it.selectedAddons.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-0.5">
+                                  {it.selectedAddons.map((addon, aIdx) => (
+                                    <span key={aIdx} className="text-[10px] bg-[#FFF9F3] text-[#7C3F27] px-1.5 py-0.2 rounded border border-[#D29C83]/30">
+                                      + {addon.name} (+₹{addon.price})
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
                           ))}
                         </div>
+                      ) : (
+                        <>
+                          <h4 className="font-serif text-base text-[#411C10] leading-snug flex items-center flex-wrap gap-1.5">
+                            <span>{ord.itemTitle} ({ord.selectedSize})</span>
+                            {ord.quantity && ord.quantity > 1 && (
+                              <span className="text-[11px] font-sans font-bold bg-[#7C3F27] text-[#FEEDDD] px-2 py-0.5 rounded-full">
+                                ×{ord.quantity}
+                              </span>
+                            )}
+                          </h4>
+                          <div className="text-sm font-bold text-[#7C3F27] mt-0.5">
+                            {ord.price}
+                          </div>
+
+                          {/* Selected Add-ons Display */}
+                          {ord.selectedAddons && ord.selectedAddons.length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-1.5">
+                              {ord.selectedAddons.map((addon, aIdx) => (
+                                <span
+                                  key={aIdx}
+                                  className="inline-flex items-center gap-1 text-[10.5px] font-semibold bg-[#FEEDDD] text-[#7C3F27] px-2 py-0.5 rounded-md border border-[#D29C83]/30"
+                                >
+                                  <span>+ {addon.name}</span>
+                                  <span className="opacity-75 font-normal">(₹{addon.price}/-)</span>
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </>
                       )}
 
                       <div className="mt-3 pt-3 border-t border-[#D29C83]/20 text-xs text-[#7C3F27] space-y-1">
